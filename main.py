@@ -1,15 +1,27 @@
 
-def newBoard(): 
-    board = (
-        'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player's back rank
-        'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  # player's pawn rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8',  # bot's pawn rank
-        'R1', 'N1', 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot's back rank
-    )
+def newBoard(startingWhite): 
+    if startingWhite: 
+        board = (
+            'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player
+            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
+            'R1', 'N1', 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot
+        )
+    else: 
+        board = (
+            'r1', 'n1', 'b1', 'k', 'q', 'b2', 'n2', 'r2',  # player
+            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
+            'R1', 'N1', 'B1', 'K', 'Q', 'B2', 'N2', 'R2'   # bot
+        )
     return board
 
 #12345678 is bottom to top, abcdefgh is left to right
@@ -48,63 +60,148 @@ def moveValidate(piece, dest, turn, board):
      # Finding current and destination indices on the board
     currIndex = findPiece(piece, board)
     destIndex = findIndex(dest)
-    colDiff = abs((currIndex % 8) - (destIndex % 8))
-    rowDiff = (currIndex // 8) - (destIndex // 8)
+    colDiff = -((currIndex % 8) - (destIndex % 8)) # Target to the right results in positive  
+    rowDiff = -((currIndex // 8) - (destIndex // 8)) # Target above results in negative 
 
     #Move validity checking
     match piece[0].lower():
         case "r":
-            pass
+            if colDiff == 0:  # Vertical movement
+                step = 8 if rowDiff > 0 else -8
+                nextIndex = currIndex + step
+
+                while nextIndex != destIndex:  
+                    if board[nextIndex] is not board[destIndex]:
+                        if board[nextIndex] is not None:  
+                            return False  
+                        nextIndex += step
+                    else: 
+                        break
+                
+            elif rowDiff == 0:  # Horizontal movement
+                step = 1 if colDiff > 0 else -1  
+                nextIndex = currIndex + step  
+                while nextIndex != destIndex: 
+                    if board[nextIndex] is not None:  
+                        return False  
+                    nextIndex += step  
+            else: 
+                return False
+            
         case "n":
-            pass
+            if abs(colDiff) == 2: 
+                if abs(rowDiff) == 1: 
+                    pass
+                else: return False
+            elif abs(colDiff) == 1: 
+                if abs(rowDiff) == 2: 
+                    pass
+                else: return False
+            else: return False
+            
         case "b":
-            pass
-        case "q":
-            pass
-        case "k":
-            pass
+            if abs(colDiff) == abs(rowDiff):  # Diagonal movement
+                step = 9 if colDiff > 0 and rowDiff > 0 else -9  
+                if colDiff < 0 and rowDiff > 0:
+                    step = 7  # Bottom left
+                elif colDiff > 0 and rowDiff < 0:
+                    step = -7  # Top right
+
+                nextIndex = currIndex + step
+                while nextIndex != destIndex:
+                    if board[nextIndex] is not None:  # Check if the path is clear
+                        return False
+                    nextIndex += step
+            else: return False
+
+        case "q":  # Queen
+            if colDiff == 0:  # Vertical movement
+                step = 8 if rowDiff > 0 else -8
+                nextIndex = currIndex + step
+
+                while nextIndex != destIndex:  
+                    if board[nextIndex] is not board[destIndex]:
+                        if board[nextIndex] is not None:  
+                            return False  
+                        nextIndex += step
+                    else: 
+                        break
+                
+            elif rowDiff == 0:  # Horizontal movement
+                step = 1 if colDiff > 0 else -1  
+                nextIndex = currIndex + step  
+                while nextIndex != destIndex: 
+                    if board[nextIndex] is not None:  
+                        return False  
+                    nextIndex += step  
+
+            elif abs(colDiff) == abs(rowDiff):  # Diagonal movement
+                step = 9 if colDiff > 0 and rowDiff > 0 else -9  
+                if colDiff < 0 and rowDiff > 0:
+                    step = 7  # Bottom left
+                elif colDiff > 0 and rowDiff < 0:
+                    step = -7  # Top right
+
+                nextIndex = currIndex + step
+                while nextIndex != destIndex:
+                    if board[nextIndex] is not None:  # Check if the path is clear
+                        return False
+                    nextIndex += step
+
+            else: 
+                return False
+        
+        case "k":  # King movement validation
+            # Check for single square movement in any direction
+            if abs(rowDiff) <= 1 and abs(colDiff) <= 1:
+                if board[destIndex] is None: 
+                    return True
+                elif turn == 'bot' and board[destIndex][0].islower(): 
+                    return True
+                elif turn == 'player' and board[destIndex][0].isupper(): 
+                    return True
+                else: return False
+            else: return False
+
         case "p":
             if turn == "player":
                 # 1 square
-                if rowDiff == -1 and colDiff == 0 and board[destIndex] is None:
-                    return True
-                # 2 squares
-                elif rowDiff == -2 and colDiff == 0 and currIndex // 8 == 6 and board[destIndex] is None and board[currIndex + 8] is None:
-                    return True
-                # kill
-                elif rowDiff == -1 and colDiff == 1 and board[destIndex] is not None and board[destIndex][0].isupper():
-                    return True     
-            elif turn == "bot":
                 if rowDiff == 1 and colDiff == 0 and board[destIndex] is None:
                     return True
-                elif rowDiff == 2 and colDiff == 0 and currIndex // 8 == 1 and board[destIndex] is None and board[currIndex - 8] is None:
+                # 2 squares
+                elif rowDiff == 2 and colDiff == 0 and currIndex // 8 == 1 and board[destIndex] is None and board[currIndex + 8] is None:
                     return True
-                elif rowDiff == 1 and colDiff == 1 and board[destIndex] is not None and board[destIndex][0].islower():
+                # kill
+                elif rowDiff == 1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].isupper():
+                    return True     
+                else: return False 
+            elif turn == "bot":
+                if rowDiff == -1 and colDiff == 0 and board[destIndex] is None:
                     return True
-    print(f"rowDiff: {rowDiff} colDiff: {colDiff} currIndex: {currIndex} currIndex // 8: {currIndex // 8} board[destIndex]: {board[destIndex]} board[currIndex + 8]: {board[currIndex + 8]}")
-    return "Case issue"
+                elif rowDiff == -2 and colDiff == 0 and currIndex // 8 == 6 and board[destIndex] is None and board[currIndex - 8] is None:
+                    return True  
+                elif rowDiff == -1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].islower():
+                    return True
+                else: return False
 
-
-## fix move 2 up issue
+    if turn == 'bot':
+            return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
+    elif turn == 'player':
+        return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
 
 
 board = (
-        'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player's back rank
-        'p1', 'p2', 'p3', None, 'p5', 'p6', 'p7', 'p8',  # player's pawn rank
-        None, None, None, 'P4', None, None, None, None,  # Empty rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        None, None, None, None, None, None, None, None,  # Empty rank
-        None, None, None, 'p4', None, None, None, None,  # Empty rank
-        'P1', 'P2', 'P3', None, 'P5', 'P6', 'P7', 'P8',  # bot's pawn rank
-        'R1', 'N1', 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot's back rank
-    )
-
-print("Index of b3 (should be empty):", board[findIndex('b3')])
-print("Index of b4 (should be empty):", board[findIndex('b4')])
-print("Starting row of P2:", findIndex('b2') // 8)
+            'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player
+            None, None, None, 'p4', None, None, 'p7', 'p8',  
+            None, 'p1', 'p3', None, 'p5', None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, 'N1', None, None, None, None,  
+            None, 'p2', None, None, None, 'p6', None, None,  
+            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
+            'R1', None, 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot
+        )
 
 
-# Valid moves for bot's pawn (Uppercase)
-print("Bot's Pawn Test 1 (Forward 1):", moveValidate('P1', 'a3', 'bot', board))  # Expect True for valid forward movement
-print("Bot's Pawn Test 2 (Forward 2):", moveValidate('P2', 'b4', 'bot', board))  # Expect True for valid forward movement
-print("Bot's Pawn Test 3 (Diagonal):", moveValidate('P5', 'd3', 'bot', board))  # Expect True for valid forward movement
+
+
+
