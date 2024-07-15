@@ -29,7 +29,7 @@ def newBoard(botWhite): # True -> Bot is white
 #12345678 is bottom to top, abcdefgh is left to right
 
 def printBoard(board):
-    #os.system('cls')
+    os.system('cls')
     for i in range(8):
         rowText = ""
 
@@ -170,7 +170,6 @@ def enPassant(destIndex, turn, board):
     board[opponentIndex] = None  # Remove the opponent's pawn
     return tuple(board)
 
-
 def castleValidate(botWhite, turn, board): 
     # Check if pieces are in board
 
@@ -195,7 +194,7 @@ def castleValidate(botWhite, turn, board):
             
     return False 
 
-def moveValidate(piece, dest, turn, board, gameStates):
+def moveValidate(piece, dest, turn, board, gameStates=False):
     # Error handling
     validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
     
@@ -318,7 +317,25 @@ def moveValidate(piece, dest, turn, board, gameStates):
                 elif turn == 'player' and board[destIndex][0].isupper(): 
                     return True
                 else: return False
-            else: return False
+            if botWhite: 
+                if turn == 'player' and ('k') in board and ('r2') in board:
+                        if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
+                            if board[5] is None and board[6] is None: 
+                                return True
+                elif turn == 'bot' and ('K') in board and ('R2') in board: 
+                    if findPiece('K', board) == 60 and findPiece('R2', board) == 63: 
+                        if board[61] is None and board[62] is None:
+                            return True
+            else:
+                if turn == 'player' and ('k') in board and ('r2') in board:
+                    if findPiece('k', board) == 3 and findPiece('r1', board) == 0: 
+                        if board[1] is None and board[2] is None:
+                            return True            
+                elif turn == 'bot' and ('K') in board and ('R2') in board: 
+                    if findPiece('K', board) == 59 and findPiece('R1', board) == 56: 
+                        if board[57] is None and board[58] is None:
+                            return True
+            return False
 
         case "p":
             if turn == "player":
@@ -421,6 +438,7 @@ def startGame(botWhite):
         # Detect checkmate and draw
 
         gameStates.append(board)
+
         turn = "player" if turn == "bot" else "bot"
 
 
