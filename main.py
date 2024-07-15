@@ -46,6 +46,26 @@ def movePiece(piece, dest, board):
 
     return tuple(board)
 
+def castleValidate(startingWhite, turn, board): 
+    if startingWhite: 
+        if turn == 'player': 
+            if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
+                return True
+            
+        else: 
+            if findPiece('K', board) == 60 and findPiece('R2', board) == 63: 
+                return True
+    else:
+        if turn == 'player': 
+            if findPiece('k', board) == 3 and findPiece('r1', board) == 0: 
+                return True
+            
+        else: 
+            if findPiece('K', board) == 59 and findPiece('R1', board) == 56: 
+                return True
+    return False 
+
+
 def moveValidate(piece, dest, turn, board):
     # Err handling
     validPiece = piece in board
@@ -184,24 +204,11 @@ def moveValidate(piece, dest, turn, board):
                     return True
                 else: return False
 
+            # ADD EN PASSANT 
+
     if turn == 'bot':
             return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
-
-
-board = (
-            'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player
-            None, None, None, 'p4', None, None, 'p7', 'p8',  
-            None, 'p1', 'p3', None, 'p5', None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, 'N1', None, None, None, None,  
-            None, 'p2', None, None, None, 'p6', None, None,  
-            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
-            'R1', None, 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot
-        )
-
-
-
 
 
