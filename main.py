@@ -1,3 +1,5 @@
+import os
+
 
 def newBoard(startingWhite): 
     if startingWhite: 
@@ -26,16 +28,26 @@ def newBoard(startingWhite):
 
 #12345678 is bottom to top, abcdefgh is left to right
 
-def printBoard(board): 
-    pass
+def printBoard(board):
+    os.system('cls')
+    for i in range(8):
+        rowText = ""
 
-def findIndex(square): # Translates from a chess square like e5 to an index
-    try: 
+        for j in range(8):
+            square = (board[(i*8)+j])
+            rowText += f"{(square if square is not None else '·'):>3} "
+        print(rowText)
+
+
+def findSquare(square):
+    try:
         colIndex = ord(square[0]) - ord('a')
         rowIndex = int(square[1]) - 1
         index = (7 - rowIndex) * 8 + colIndex
+        print(f"findSquare({square}) = {index}")  # Debug output
         return index
-    except: 
+    except Exception as e:
+        print(f"Error in findSquare with input '{square}': {e}")
         return False
 
 def findPiece(piece, board): # Returns the index of a piece like P5
@@ -44,15 +56,54 @@ def findPiece(piece, board): # Returns the index of a piece like P5
     
     return board.index(piece)
 
-def movePiece(piece, dest, board): # Returns board with piece moved
-    currLoc = findPiece(piece, board)
-    destLoc = findIndex(dest)
+def movePiece(piece, dest_index, board):
+    try:
+        curr_index = findPiece(piece, board)
+        if curr_index == -1:
+            print(f"Piece {piece} not found on the board.")
+            return board
+
+        board = list(board)
+        print(f"Moving {piece} from index {curr_index} to index {dest_index}")
+
+        if board[dest_index] is not None:
+            print(f"Capturing piece at {dest_index}")
+
+        board[dest_index] = piece
+        board[curr_index] = None
+        return tuple(board)
+    except Exception as e:
+        print(f"Error moving piece: {e}")
+        return board
+
+def castle(turn, board, startingWhite): 
     board = list(board)
-
-    board[currLoc] = None
-    board[destLoc] = piece
-
+    if startingWhite: 
+        if turn == 'bot': 
+            board[60] = None
+            board[61] = 'R2'
+            board[62] = 'K'
+            board[63] = None
+        else: 
+            board[7] = None
+            board[6] = 'k'
+            board[5] = 'r2'
+            board[4] = None
+    else: 
+        if turn == 'bot': 
+            board[59] = None
+            board[58] = 'R1'
+            board[57] = 'K'
+            board[56] = None
+        else: 
+            board[3] = None
+            board[2] = 'r1'
+            board[1] = 'k'
+            board[0] = None
     return tuple(board)
+
+def promotePawn(piece, board): 
+    pass
 
 def castleValidate(startingWhite, turn, board): 
     # Check if pieces are in board
@@ -60,17 +111,21 @@ def castleValidate(startingWhite, turn, board):
     if startingWhite: 
         if turn == 'player' and ('k') in board and ('r2') in board:
                 if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
-                    return True
+                    if board[5] is None and board[6] is None: 
+                        return True
         elif turn == 'bot' and ('K') in board and ('R2') in board: 
             if findPiece('K', board) == 60 and findPiece('R2', board) == 63: 
-                return True
+                if board[61] is None and board[62] is None:
+                    return True
     else:
         if turn == 'player' and ('k') in board and ('r2') in board:
             if findPiece('k', board) == 3 and findPiece('r1', board) == 0: 
-                return True            
+                if board[1] is None and board[2] is None:
+                    return True            
         elif turn == 'bot' and ('K') in board and ('R2') in board: 
             if findPiece('K', board) == 59 and findPiece('R1', board) == 56: 
-                return True
+                if board[57] is None and board[58] is None:
+                    return True
             
     return False 
 
@@ -98,7 +153,7 @@ def moveValidate(piece, dest, turn, board):
 
     # Ensuring dest is a string before finding index
     if isinstance(dest, str):
-        destIndex = findIndex(dest)
+        destIndex = findSquare(dest)
     else:
         destIndex = dest  # Assuming dest is already an index if not a string
 
@@ -242,35 +297,36 @@ def moveValidate(piece, dest, turn, board):
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
 
-def inputValidate(input, board, startingWhite, turn):
-    # Regular moves
-    if input.split(" ")[0] in board and findIndex(input.split(" ")[1]) is not False: 
-        piece = input.split(" ")[0]
-        dest = findIndex(input.split(" ")[1])
+def inputValidate(input_str, board, startingWhite, turn):
+    input_parts = input_str.strip().split()  # Ensure input is properly split
 
-        if moveValidate(piece, dest, turn, board):
-            return (True, piece, dest)
-        else: 
-            return (False, None, None)
-        
-    # Castling
-    elif input.lower() == "castle": 
-        print("Castle")
+    if len(input_parts) == 2 and input_parts[0] in board:
+        piece = input_parts[0]
+        dest = input_parts[1]
+        dest_index = findSquare(dest)
+
+        if dest_index is not False:
+            print(f"Command parsed as move: {piece} to {dest} (index {dest_index})")
+            if moveValidate(piece, dest_index, turn, board):
+                return (True, piece, dest_index)
+            else:
+                print("Move validation failed.")
+        else:
+            print("Destination square is invalid.")
+    elif input_str.lower() == "castle":
         if castleValidate(startingWhite, turn, board):
             return ("castle", None, None)
-        else: 
+        else:
             return (False, None, None)
-        
-    # Pawn promotion
-    elif input.lower().split(" ")[0] == "promote" and int(input.lower().split(" ")[1][1]) in [1,2,3,4,5,6,7,8]:
-        piece = input.split(" ")[1]
-
+    elif input_parts[0].lower() == "promote":
+        piece = input_parts[1]
         if pawnPromotionValidate(piece, turn, board):
             return (piece, None, None)
-        else: 
+        else:
             return (False, None, None)
     
-    return (False, None, None)    
+    print("Input does not match any valid command format.")
+    return (False, None, None) 
 
 def startGame(startingWhite): 
     board = newBoard(startingWhite)
@@ -281,8 +337,9 @@ def startGame(startingWhite):
     terminated = False    
     while (terminated != True): 
 
-        while True: 
-            print("Turn: ", turn)
+        while True:
+            printBoard(board)
+            print("\nTurn:", turn.upper(), "\n")
             playerInput = input("Enter the move in format 'P3 e5'. \nTo promote, say 'promote P3'. \nTo castle, say 'castle'. \n\n").strip()
             validity, piece, dest = inputValidate(playerInput, board, startingWhite, turn)
             if validity is not False:
@@ -290,18 +347,20 @@ def startGame(startingWhite):
             else: 
                 print("Invalid move. Try again!")
             
-            
+        # Standard move
         if piece is not None: 
             print("Moving piece")
-            movePiece(piece, dest, board)
+            board = movePiece(piece, dest, board)
+
+        # Pawn promotion
         elif validity in board: 
             print("Promoting pawn")
-            # execute promote pawn 
             pass
+
+        # Castling
         elif validity == "castle": 
             print("Castling")
-            # execute castle mover castle
-            pass
+            board = castle(turn, board, startingWhite)
 
 
 
