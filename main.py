@@ -26,14 +26,14 @@ def newBoard(startingWhite):
 
 #12345678 is bottom to top, abcdefgh is left to right
 
-def findIndex(square):
+def findIndex(square): # Translates from a chess square like e5 to an index
     colIndex = ord(square[0]) - ord('a')
     rowIndex = int(square[1]) - 1
     index = (7 - rowIndex) * 8 + colIndex
     
     return index
 
-def findPiece(piece, board):
+def findPiece(piece, board): # Returns the index of a piece like P5
     return board.index(piece)
 
 def movePiece(piece, dest, board):
@@ -65,6 +65,14 @@ def castleValidate(startingWhite, turn, board):
                 return True
     return False 
 
+def pawnPromotionValidate(piece, turn, board):
+    currLoc = findPiece(piece, board)
+    if turn == 'player' and currLoc // 8 == 7:
+        return True
+    elif turn == 'bot' and currLoc // 8 == 0:  
+        return True
+    else: 
+        return False
 
 def moveValidate(piece, dest, turn, board):
     # Err handling
@@ -211,4 +219,15 @@ def moveValidate(piece, dest, turn, board):
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
 
+
+board = (
+            'r1', 'P2', 'b1', 'P4', 'k', 'b2', 'n2', 'r2',  # player
+            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', None, 'p8',  
+            None, None, None, None, None, None, None, None,  
+            None, None, 'P3', None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            None, None, None, None, None, None, None, None,  
+            'P1', 'None', None, 'q', 'P5', 'P6', 'P7', 'P8', 
+            'R1', 'N1', 'B1', 'Q', 'K', 'B2', 'p7', 'R2'   # bot
+        )
 
