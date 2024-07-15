@@ -1,8 +1,8 @@
 import os
 
 
-def newBoard(startingWhite): 
-    if startingWhite: 
+def newBoard(botWhite): # True -> Bot is white
+    if botWhite: 
         board = (
             'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player
             'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  
@@ -29,7 +29,7 @@ def newBoard(startingWhite):
 #12345678 is bottom to top, abcdefgh is left to right
 
 def printBoard(board):
-    os.system('cls')
+    #os.system('cls')
     for i in range(8):
         rowText = ""
 
@@ -55,7 +55,7 @@ def findPiece(piece, board): # Returns the index of a piece like P5
     
     return board.index(piece)
 
-def movePiece(piece, destIndex, board):
+def movePiece(piece, destIndex, board, gameStates, turn):
     try:
         currIndex = findPiece(piece, board)
         if currIndex == -1:
@@ -66,13 +66,28 @@ def movePiece(piece, destIndex, board):
         board[destIndex] = piece
         board[currIndex] = None
         
+        colDiff = (destIndex % 8) - (currIndex % 8)  # Positive if dest is to the right
+        rowDiff = (destIndex // 8) - (currIndex // 8)  # Positive if dest is below
+        
         if piece[0] == 'p': 
             if currIndex // 8 == 7:
                 board = promotePawn(piece, board)
         elif piece[0] == 'P': 
             if currIndex // 8 == 1:
                 board = promotePawn(piece, board)
+        if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
+                
+                if gameStates: #Checking previous game state  
+                    lastBoard = gameStates[-2]
 
+                    lastMovedPiece = lastBoard[destIndex + 8] if turn == 'player' else lastBoard[destIndex - 8]
+                    if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
+                        print("")
+                        if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:
+                            
+                            # Communicate en passant to startGame
+                            return enPassant(destIndex, turn, board)
+                            
         return tuple(board)
     
 
@@ -80,9 +95,9 @@ def movePiece(piece, destIndex, board):
         print(f"Error moving piece: {e}")
         return board
 
-def castle(turn, board, startingWhite): 
+def castle(turn, board, botWhite): 
     board = list(board)
-    if startingWhite: 
+    if botWhite: 
         if turn == 'bot': 
             board[60] = None
             board[61] = 'R2'
@@ -128,10 +143,10 @@ def promotePawn(piece, board):
 
     # Detects and names new pieces 
     count = 1
-    for existing_piece in board:
-        if existing_piece and existing_piece[0].lower() == name:
-            existing_count = int(existing_piece[1:]) if len(existing_piece) > 1 and existing_piece[1:].isdigit() else 1
-            count = max(count, existing_count + 1)
+    for existingPiece in board:
+        if existingPiece and existingPiece[0].lower() == name:
+            existingCount = int(existingPiece[1:]) if len(existingPiece) > 1 and existingPiece[1:].isdigit() else 1
+            count = max(count, existingCount + 1)
 
     newPiece = name + str(count)
     newPiece = newPiece.upper() if piece.isupper() else newPiece.lower()
@@ -144,10 +159,22 @@ def promotePawn(piece, board):
 
     return tuple(board)
 
-def castleValidate(startingWhite, turn, board): 
+def enPassant(destIndex, turn, board):
+    board = list(board)
+    if turn == 'bot':
+        opponentIndex = destIndex + 8 
+    else: 
+        opponentIndex = destIndex - 8
+    print(opponentIndex)
+    
+    board[opponentIndex] = None  # Remove the opponent's pawn
+    return tuple(board)
+
+
+def castleValidate(botWhite, turn, board): 
     # Check if pieces are in board
 
-    if startingWhite: 
+    if botWhite: 
         if turn == 'player' and ('k') in board and ('r2') in board:
                 if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
                     if board[5] is None and board[6] is None: 
@@ -168,8 +195,7 @@ def castleValidate(startingWhite, turn, board):
             
     return False 
 
-def moveValidate(piece, dest, turn, board):
-    print(dest)
+def moveValidate(piece, dest, turn, board, gameStates):
     # Error handling
     validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
     
@@ -305,7 +331,7 @@ def moveValidate(piece, dest, turn, board):
                 # kill
                 elif rowDiff == 1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].isupper():
                     return True     
-                else: return False 
+                 
             elif turn == "bot":
                 if rowDiff == -1 and colDiff == 0 and board[destIndex] is None:
                     return True
@@ -313,33 +339,46 @@ def moveValidate(piece, dest, turn, board):
                     return True  
                 elif rowDiff == -1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].islower():
                     return True
-                else: return False
 
-            # ADD EN PASSANT 
+            # En passant     
+            if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
+                
+                if gameStates: #Checking previous game state  
+                    lastBoard = gameStates[-2]
+
+                    lastMovedPiece = lastBoard[destIndex + 8] if turn == 'player' else lastBoard[destIndex - 8]
+                    if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
+                        print("")
+                        if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:
+                            
+                            # Communicate en passant to startGame
+                            
+                            return True
+            return False
 
     if turn == 'bot':
             return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
 
-def inputValidate(input_str, board, startingWhite, turn):
-    input_parts = input_str.strip().split()  # Ensure input is properly split
+def inputValidate(inputString, board, botWhite, turn, gameStates):
+    inputParts = inputString.strip().split()  # Ensure input is properly split
 
-    if len(input_parts) == 2 and input_parts[0] in board:
-        piece = input_parts[0]
-        dest = input_parts[1]
+    if len(inputParts) == 2 and inputParts[0] in board:
+        piece = inputParts[0]
+        dest = inputParts[1]
         destIndex = findSquare(dest)
 
         if destIndex is not False:
             print(f"Command parsed as move: {piece} to {dest} (index {destIndex})")
-            if moveValidate(piece, destIndex, turn, board):
+            if moveValidate(piece, destIndex, turn, board, gameStates):
                 return (True, piece, destIndex)
             else:
                 print("Move validation failed.")
         else:
             print("Destination square is invalid.")
-    elif input_str.lower() == "castle":
-        if castleValidate(startingWhite, turn, board):
+    elif inputString.lower() == "castle":
+        if castleValidate(botWhite, turn, board):
             return ("castle", None, None)
         else:
             return (False, None, None)
@@ -347,10 +386,10 @@ def inputValidate(input_str, board, startingWhite, turn):
     print("Input does not match any valid command format.")
     return (False, None, None) 
 
-def startGame(startingWhite): 
-    board = newBoard(startingWhite)
+def startGame(botWhite): 
+    board = newBoard(botWhite)
 
-    turn = "bot" if startingWhite else "player"
+    turn = "bot" if botWhite else "player"
 
     # Starts game loop
     terminated = False    
@@ -361,7 +400,7 @@ def startGame(startingWhite):
             printBoard(board)
             print("\nTurn:", turn.upper(), "\n")
             playerInput = input("Enter the move in format 'P3 e5'. \nTo castle, say 'castle'. \n\n").strip()
-            validity, piece, dest = inputValidate(playerInput, board, startingWhite, turn)
+            validity, piece, dest = inputValidate(playerInput, board, botWhite, turn, gameStates)
             if validity is not False:
                 break
             else: 
@@ -370,13 +409,13 @@ def startGame(startingWhite):
         # Standard move
         if piece is not None: 
             print("Moving piece")
-            board = movePiece(piece, dest, board)
+            board = movePiece(piece, dest, board, gameStates, turn)
 
 
         # Castling
         elif validity == "castle": 
             print("Castling")
-            board = castle(turn, board, startingWhite)
+            board = castle(turn, board, botWhite)
 
         
         # Detect checkmate and draw
@@ -385,13 +424,49 @@ def startGame(startingWhite):
         turn = "player" if turn == "bot" else "bot"
 
 
-def getLegalMoves(): 
-    # Returns a tuple of all possible moves. 
-    # List all possible moves (piece by piece)
-    # Early termination in case of obstructions
-    pass
+def getAllMoves(piece, originalBoard): # Returns an array of all possible game tuples for a piece 
+    possibleMoves = []
+
+    if piece is not None: 
+        pass
+    else: 
+        return possibleMoves
+    
+    currIndex = findPiece(piece, originalBoard)  
+    if currIndex == -1:
+        return possibleMoves  
+
+    turn = 'player' if piece[0].islower() else 'bot'
+
+    # Check every position on the board 
+    for destIndex in range(64):
+        if currIndex != destIndex:  
+            
+            if moveValidate(piece, destIndex, turn, originalBoard):
+                
+                testBoard = list(originalBoard)
+                testBoard[destIndex] = piece  # Place the piece at the destination index
+                testBoard[currIndex] = None  # Remove the piece from its original position
+
+
+                possibleMoves.append(tuple(testBoard))  
+
+    return possibleMoves
+
+def getAllTeamMoves(team, board): #Returns an array of arrays for a given team
+    teamMoves = []
+    if team == 'player': 
+        for piece in board: 
+            if piece is not None and piece[0].islower(): 
+                teamMoves.append(getAllMoves(piece, board))
+    if team == 'bot': 
+        for piece in board: 
+            if piece is not None and piece[0].islower(): 
+                teamMoves.append(getAllMoves(piece, board))
+    return teamMoves
 
 
 
-startingWhite = True
-startGame(startingWhite)
+botWhite = True
+
+startGame(botWhite)
