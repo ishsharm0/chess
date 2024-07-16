@@ -70,4 +70,6 @@ def startGame(botWhite):
         
         # Switch turns
         turn, oppositeTurn = oppositeTurn, turn
+
+        
 startGame(True)

@@ -1,7 +1,7 @@
 from colorama import Style, init, Fore
 import os
 
-clearLogs = False
+clearLogs = True
 init(autoreset=True)
 
 def newBoard(botWhite): # True -> Bot is white
@@ -29,7 +29,7 @@ def newBoard(botWhite): # True -> Bot is white
         )
     return board
 
-def detectCheckmate(board, turn):
+def detectCheckmate(board, turn, botWhite):
     # Invert turn to check if the opponent is in checkmate
     enemy_turn = 'bot' if turn == 'player' else 'player'
     allMoves = getAllTeamMoves(enemy_turn, board, turn == 'bot')
@@ -41,7 +41,6 @@ def detectCheckmate(board, turn):
                 return False  # Not checkmate if at least one move leads out of check
     return True
 
-
 def detectStalemate(board, turn, botWhite):
     if len(getAllTeamMoves(turn, board, botWhite)) == 0: 
         return True
@@ -51,7 +50,7 @@ def isKingSafe(board, turn):
     casePiece = 'K' if turn == 'bot' else 'k'
     kingPosition = findPiece(casePiece, board)
     if kingPosition == -1:
-        return True  # King not found, possibly a board setup issue.
+        return False  # King not found, possibly a board setup issue.
 
     enemy = 'player' if turn == 'bot' else 'bot'
     
@@ -108,7 +107,6 @@ def crossesBorder(origin, destination):
 
 def isOnBoard(position):
     return 0 <= position < 64
-
 
 def isEnemyPiece(board, position, pieceType, enemy):
     piece = board[position]
