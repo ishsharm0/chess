@@ -1,5 +1,4 @@
-import os
-
+import os, colorama
 
 def newBoard(botWhite): # True -> Bot is white
     if botWhite: 
@@ -29,7 +28,7 @@ def newBoard(botWhite): # True -> Bot is white
 #12345678 is bottom to top, abcdefgh is left to right
 
 def printBoard(board):
-    #os.system('cls')
+    os.system('cls')
     for i in range(8):
         rowText = ""
 
@@ -70,7 +69,7 @@ def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with
         rowDiff = (destIndex // 8) - (currIndex // 8)  # Positive if dest is below
         
         if piece[0] == 'p': 
-            if currIndex // 8 == 7:
+            if currIndex // 8 == 6:
                 board = promotePawn(piece, board)
         elif piece[0] == 'P': 
             if currIndex // 8 == 1:
@@ -447,10 +446,10 @@ def startGame(botWhite):
                 
 
             # Stalemate checker
-            if detectStalemate(board, turn):
-                print("Stalemate! Game over.")
-                terminated = True
-                break
+            #if detectStalemate(board, turn):
+            #    print("Stalemate! Game over.")
+            #    terminated = True
+            #    break
 
             # Player input and validity checking
             playerInput = input("Enter the move in format 'P3 e5'. To castle, say 'castle'. \n\n").strip() 
@@ -516,7 +515,7 @@ def isKingSafe(board, turn):
     for attack in pawnAttacks:
         pos = kingPosition + attack
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'p', enemy):
-            print("Pawn issue at position", pos)
+            #print("Pawn issue at position", pos)
             return False
 
     # Check for linear attacks from rooks, queens, bishops
@@ -526,10 +525,10 @@ def isKingSafe(board, turn):
             piece = board[pos]
             if piece:
                 if piece[0].lower() in ['r', 'q'] and direction in directions and isEnemyPiece(board, pos, piece[0], enemy):
-                    print("Rook/Queen issue at position", pos)
+                    #rint("Rook/Queen issue at position", pos)
                     return False
                 if piece[0].lower() in ['b', 'q'] and direction in diagonals and isEnemyPiece(board, pos, piece[0], enemy):
-                    print("Bishop/Queen issue at position", pos)
+                    #print("Bishop/Queen issue at position", pos)
                     return False
                 break
             pos += direction
@@ -538,14 +537,14 @@ def isKingSafe(board, turn):
     for move in knightMoves:
         pos = kingPosition + move
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'n', enemy):
-            print("Knight issue at position", pos)
+            #print("Knight issue at position", pos)
             return False
 
     # Check if the enemy king is directly next to this king
     for move in [-1, 1, -8, 8, -9, -7, 9, 7]:
         pos = kingPosition + move
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'k', enemy):
-            print("King issue at position", pos)
+            #print("King issue at position", pos)
             return False
 
     return True
@@ -596,7 +595,6 @@ def getPieceMoves(piece, originalBoard): # Returns an array of all possible game
     return possibleMoves
 
 def getAllTeamMoves(team, board): #Returns an array of arrays for a given team
-    print("Getting all team moves")
     teamMoves = []
     if team == 'player': 
         for piece in board: 
