@@ -29,10 +29,10 @@ def newBoard(botWhite): # True -> Bot is white
         )
     return board
 
-def detectCheckmate(board, turn, botWhite):
+def detectCheckmate(board, turn, botWhite, gameStates):
     # Invert turn to check if the opponent is in checkmate
     enemy_turn = 'bot' if turn == 'player' else 'player'
-    allMoves = getAllTeamMoves(enemy_turn, board, turn == 'bot')
+    allMoves = getAllTeamMoves(enemy_turn, board, turn == 'bot', gameStates)
 
     # Check if any move leads to a position where the enemy king is not in check
     for moves in allMoves:
@@ -41,8 +41,8 @@ def detectCheckmate(board, turn, botWhite):
                 return False  # Not checkmate if at least one move leads out of check
     return True
 
-def detectStalemate(board, turn, botWhite):
-    if len(getAllTeamMoves(turn, board, botWhite)) == 0: 
+def detectStalemate(board, turn, botWhite, gameStates):
+    if len(getAllTeamMoves(turn, board, botWhite, gameStates)) == 0: 
         return True
     else: return False
 
@@ -114,7 +114,7 @@ def isEnemyPiece(board, position, pieceType, enemy):
         return (piece.islower() if enemy == 'player' else piece.isupper())
     return False
 
-def getPieceMoves(piece, originalBoard, botWhite): # Returns an array of all possible game tuples for a piece 
+def getPieceMoves(piece, originalBoard, botWhite, gameStates): # Returns an array of all possible game tuples for a piece 
     # Checks if piece is there
     possibleMoves = []
     if piece is not None: 
@@ -132,7 +132,7 @@ def getPieceMoves(piece, originalBoard, botWhite): # Returns an array of all pos
         if currIndex != destIndex:  
         
             # If valid move, move it to the new board
-            if moveValidate(piece, destIndex, turn, originalBoard, botWhite):                
+            if moveValidate(piece, destIndex, turn, originalBoard, botWhite, gameStates):                
                 testBoard = list(originalBoard)
                 testBoard[destIndex] = piece 
                 testBoard[currIndex] = None  
@@ -140,16 +140,16 @@ def getPieceMoves(piece, originalBoard, botWhite): # Returns an array of all pos
 
     return tuple(possibleMoves)
 
-def getAllTeamMoves(team, board, botWhite): #Returns an array of arrays for a given team
+def getAllTeamMoves(team, board, botWhite, gameStates): #Returns an array of arrays for a given team
     teamMoves = []
     if team == 'player': 
         for piece in board: 
             if piece is not None and piece[0].islower(): 
-                teamMoves.append(getPieceMoves(piece, board, botWhite))
+                teamMoves.append(getPieceMoves(piece, board, botWhite, gameStates))
     if team == 'bot': 
         for piece in board: 
             if piece is not None and piece[0].isupper(): 
-                teamMoves.append(getPieceMoves(piece, board, botWhite))
+                teamMoves.append(getPieceMoves(piece, board, botWhite, gameStates))
     return tuple(teamMoves)
 
 def findPiece(piece, board): # Returns the index of a piece like P5
@@ -234,7 +234,7 @@ def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with
         print(f"Error moving piece: {e}")
         return board
 
-def moveValidate(piece, dest, turn, board, botWhite, gameStates=False):
+def moveValidate(piece, dest, turn, board, botWhite, gameStates):
 
     # Error handling
     validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
@@ -402,15 +402,14 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates=False):
 
             # En passant     
             if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
-                
-                if gameStates: #Checking previous game state  
-                    lastBoard = gameStates[-2]
+                if len(gameStates) > 2: #Checking previous game state
 
+                    lastBoard = gameStates[-2]
                     lastMovedPiece = lastBoard[destIndex + 8] if turn == 'player' else lastBoard[destIndex - 8]
-                    if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
-                        print("")
-                        if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:                            
-                            return True
+                    if lastMovedPiece is not None:     
+                        if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
+                            if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:                            
+                                return True
             return False
 
     if turn == 'bot':

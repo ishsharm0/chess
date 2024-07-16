@@ -2,7 +2,7 @@ from gameLogic import *
 import random
     
 
-def scoreMove(board, botWhite):
+def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
     values = {
         'K': 5, 'Q': 4, 'R': 3.5, 'B': 3, 'N': 2.5, 'P': 1,
@@ -19,10 +19,10 @@ def scoreMove(board, botWhite):
     score += random.random() * 0.000001
 
     # Is enemy checkmate
-    if detectCheckmate(board, 'player', botWhite):
+    if detectCheckmate(board, 'player', botWhite, gameStates):
         score += 10  
     # Is bot checkmate
-    if detectCheckmate(board, 'bot', botWhite): 
+    if detectCheckmate(board, 'bot', botWhite, gameStates): 
         score -= 10
 
     if not (isKingSafe(board, 'player')): 
@@ -32,7 +32,7 @@ def scoreMove(board, botWhite):
 
     return score
     
-def scoreMoveForEnemy(board, botWhite):
+def scoreMoveForEnemy(board, botWhite, gameStates):
     # Define values for each piece type, negative for bot's pieces since we're scoring for the enemy
     values = {
         'K': -5, 'Q': -4, 'R': -3.5, 'B': -3, 'N': -2.5, 'P': -1,
@@ -49,11 +49,11 @@ def scoreMoveForEnemy(board, botWhite):
     score += random.random() * 0.000001
 
     # Is enemy (bot) checkmate
-    if detectCheckmate(board, 'bot', botWhite):
+    if detectCheckmate(board, 'bot', botWhite, gameStates):
         score += 10  # Positive for enemy if bot is in checkmate
 
     # Is player (enemy) checkmate
-    if detectCheckmate(board, 'player', botWhite): 
+    if detectCheckmate(board, 'player', botWhite, gameStates): 
         score -= 10  # Negative if enemy is in checkmate, we don't want this
 
     # Check king safety and adjust score accordingly
@@ -64,7 +64,7 @@ def scoreMoveForEnemy(board, botWhite):
 
     return score
 
-def calculateMove(moves, botWhite):
+def calculateMove(moves, botWhite, gameStates):
     if not moves:  # Check if moves list is empty
         print("No moves available.")
         return None
@@ -76,7 +76,7 @@ def calculateMove(moves, botWhite):
     for piece_moves in moves:
         if piece_moves:  # Ensure there are moves available for the piece
             for move in piece_moves:
-                current_score = scoreMove(move, botWhite)
+                current_score = scoreMove(move, botWhite, gameStates)
                 if current_score > best_score:
                     best_score = current_score
                     best_move = move
@@ -95,9 +95,9 @@ def calculateMove(moves, botWhite):
 
 
 def botMove(board, turn, gameStates, botWhite):
-    moves = getAllTeamMoves(turn, board, botWhite)
+    moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         print("Failed to generate any moves for the bot.")
         return None
     
-    return calculateMove(moves, botWhite)
+    return calculateMove(moves, botWhite, gameStates)

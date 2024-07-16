@@ -18,9 +18,12 @@ def startGame(botWhite):
     # Starts game loop
     terminated = False    
     gameStates = []
+    gameStates.append(board)
+
     while not terminated: 
-        
-        while True:
+
+        while True: # Checking if move is valid
+
             # Printing board and turn information
             printBoard(board)
             print("\nTurn:", turn.upper(), "\n")
@@ -28,7 +31,8 @@ def startGame(botWhite):
             # If the king is in check, notify the player
             if not isKingSafe(board, turn):
                 
-                if detectCheckmate(board, turn, botWhite): 
+                # Detecting checkmate 
+                if detectCheckmate(board, turn, botWhite, gameStates): 
                     winner = "bot" if turn == 'player' else "player"
                     print("Checkmate! Game over,", winner, "wins!")
                     terminated = True
@@ -38,7 +42,7 @@ def startGame(botWhite):
                 
 
             # Stalemate checker
-            if detectStalemate(board, turn, botWhite):
+            if detectStalemate(board, turn, botWhite, gameStates):
                 print("Stalemate! Game over.")
                 terminated = True
                 break
@@ -71,5 +75,5 @@ def startGame(botWhite):
         # Switch turns
         turn, oppositeTurn = oppositeTurn, turn
 
-        
+
 startGame(True)
