@@ -1,7 +1,7 @@
 from colorama import Style, init, Fore
 import os
 
-clearLogs = True
+clearLogs = False
 init(autoreset=True)
 
 def newBoard(botWhite): # True -> Bot is white
@@ -29,15 +29,18 @@ def newBoard(botWhite): # True -> Bot is white
         )
     return board
 
-def detectCheckmate(board, turn, botWhite):
-    # Generate all possible moves for the current player
-    allMoves = getAllTeamMoves(turn, board, botWhite)
-    # Check if any move leads to a position where the king is safe
+def detectCheckmate(board, turn):
+    # Invert turn to check if the opponent is in checkmate
+    enemy_turn = 'bot' if turn == 'player' else 'player'
+    allMoves = getAllTeamMoves(enemy_turn, board, turn == 'bot')
+
+    # Check if any move leads to a position where the enemy king is not in check
     for moves in allMoves:
         for move in moves:
-            if isKingSafe(move, turn):
-                return False
+            if isKingSafe(move, enemy_turn):
+                return False  # Not checkmate if at least one move leads out of check
     return True
+
 
 def detectStalemate(board, turn, botWhite):
     if len(getAllTeamMoves(turn, board, botWhite)) == 0: 
@@ -48,7 +51,6 @@ def isKingSafe(board, turn):
     casePiece = 'K' if turn == 'bot' else 'k'
     kingPosition = findPiece(casePiece, board)
     if kingPosition == -1:
-        #print("King not found on board")
         return True  # King not found, possibly a board setup issue.
 
     enemy = 'player' if turn == 'bot' else 'bot'
@@ -69,7 +71,6 @@ def isKingSafe(board, turn):
     for attack in pawnAttacks:
         pos = kingPosition + attack
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'p', enemy):
-            #print("Pawn issue at position", pos)
             return False
 
     # Check for linear attacks from rooks, queens, bishops
@@ -79,10 +80,8 @@ def isKingSafe(board, turn):
             piece = board[pos]
             if piece:
                 if piece[0].lower() in ['r', 'q'] and direction in directions and isEnemyPiece(board, pos, piece[0], enemy):
-                    #print("Rook/Queen issue at position", pos)
                     return False
                 if piece[0].lower() in ['b', 'q'] and direction in diagonals and isEnemyPiece(board, pos, piece[0], enemy):
-                    #print("Bishop/Queen issue at position", pos)
                     return False
                 break
             pos += direction
@@ -91,26 +90,25 @@ def isKingSafe(board, turn):
     for move in knightMoves:
         pos = kingPosition + move
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'n', enemy):
-            #print("Knight issue at position", pos)
             return False
 
     # Check if the enemy king is directly next to this king
     for move in [-1, 1, -8, 8, -9, -7, 9, 7]:
         pos = kingPosition + move
         if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'k', enemy):
-            #print("King issue at position", pos)
             return False
 
     return True
 
 def crossesBorder(origin, destination):
-    # Check if the move crosses the 8-file boundary
-    originalRow = origin // 8
-    destRow = destination // 8
-    return originalRow != destRow and (origin % 8 == 0 or origin % 8 == 7)
+    # Special handling for knight crossing board logic
+    if abs(origin % 8 - destination % 8) > 2:
+        return True
+    return abs(origin // 8 - destination // 8) > 2 or (origin % 8 == 0 or destination % 8 == 7)
 
 def isOnBoard(position):
     return 0 <= position < 64
+
 
 def isEnemyPiece(board, position, pieceType, enemy):
     piece = board[position]
@@ -138,10 +136,10 @@ def getPieceMoves(piece, originalBoard, botWhite): # Returns an array of all pos
             # If valid move, move it to the new board
             if moveValidate(piece, destIndex, turn, originalBoard, botWhite):                
                 testBoard = list(originalBoard)
-                testBoard[destIndex] = piece  # Place the piece at the destination index
-                testBoard[currIndex] = None  # Remove the piece from its original position
-
+                testBoard[destIndex] = piece 
+                testBoard[currIndex] = None  
                 possibleMoves.append(tuple(testBoard))  
+
     return tuple(possibleMoves)
 
 def getAllTeamMoves(team, board, botWhite): #Returns an array of arrays for a given team
@@ -267,27 +265,19 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates=False):
     #Move validity checking
     match piece[0].lower():
         case "r":
-            if colDiff == 0:  # Vertical movement
-                step = 8 if rowDiff > 0 else -8
-                nextIndex = currIndex + step
+            if colDiff != 0 and rowDiff != 0:
+                return False  # Rooks move in straight lines, not diagonally
 
-                while nextIndex != destIndex:  
-                    if board[nextIndex] is not board[destIndex]:
-                        if board[nextIndex] is not None:  
-                            return False  
-                        nextIndex += step
-                    else: 
-                        break
-                
+            if colDiff == 0:  # Vertical movement
+                step = 1 if rowDiff > 0 else -1
+                for i in range(1, abs(rowDiff)):
+                    if board[currIndex + i * 8 * step] is not None:
+                        return False  # There is a piece in the way
             elif rowDiff == 0:  # Horizontal movement
-                step = 1 if colDiff > 0 else -1  
-                nextIndex = currIndex + step  
-                while nextIndex != destIndex: 
-                    if board[nextIndex] is not None:  
-                        return False  
-                    nextIndex += step  
-            else: 
-                return False
+                step = 1 if colDiff > 0 else -1
+                for i in range(1, abs(colDiff)):
+                    if board[currIndex + i * step] is not None:
+                        return False  # There is a piece in the way 
             
         case "n":
             if abs(colDiff) == 2: 

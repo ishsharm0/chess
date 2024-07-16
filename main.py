@@ -46,12 +46,11 @@ def startGame(botWhite):
             # Player input and validity checking
             if turn == "bot":
                 move = botMove(board, turn, gameStates, botWhite)
-                if move:
-                   #print(move)
-                   
-                   board = move
-                   #board = move
-                   break 
+                if isKingSafe(move, turn):
+                        board = move
+                        break
+                else:
+                    print("Invalid move. This move does not resolve the check.")
             else:   
                 playerInput = input("Enter the move in format 'P3 e5'. To castle, say 'castle'. \n\n").strip() 
                 validity, piece, dest = inputValidate(playerInput, board, botWhite, turn, gameStates)
