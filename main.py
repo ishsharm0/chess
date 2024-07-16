@@ -29,7 +29,7 @@ def newBoard(botWhite): # True -> Bot is white
 #12345678 is bottom to top, abcdefgh is left to right
 
 def printBoard(board):
-    os.system('cls')
+    #os.system('cls')
     for i in range(8):
         rowText = ""
 
@@ -55,7 +55,7 @@ def findPiece(piece, board): # Returns the index of a piece like P5
     
     return board.index(piece)
 
-def movePiece(piece, destIndex, board, gameStates, turn):
+def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with updated board
     try:
         currIndex = findPiece(piece, board)
         if currIndex == -1:
@@ -308,7 +308,16 @@ def moveValidate(piece, dest, turn, board, gameStates=False):
                 return False
         
         case "k":  # King movement validation
-            # Check for single square movement in any direction
+            
+            # Is king safe on destIndex? Pass 
+            if isKingSafe(movePiece(piece, destIndex, board, gameStates, turn), turn):
+                print("All good here")
+                pass
+            else:
+                print("King is not safe there; try again")
+                return False
+
+            # Within king's range? 
             if abs(rowDiff) <= 1 and abs(colDiff) <= 1:
                 if board[destIndex] is None: 
                     return True
@@ -317,6 +326,8 @@ def moveValidate(piece, dest, turn, board, gameStates=False):
                 elif turn == 'player' and board[destIndex][0].isupper(): 
                     return True
                 else: return False
+
+            # Castling
             if botWhite: 
                 if turn == 'player' and ('k') in board and ('r2') in board:
                         if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
@@ -381,6 +392,7 @@ def moveValidate(piece, dest, turn, board, gameStates=False):
 def inputValidate(inputString, board, botWhite, turn, gameStates):
     inputParts = inputString.strip().split()  # Ensure input is properly split
 
+    # Normal move
     if len(inputParts) == 2 and inputParts[0] in board:
         piece = inputParts[0]
         dest = inputParts[1]
@@ -392,8 +404,12 @@ def inputValidate(inputString, board, botWhite, turn, gameStates):
                 return (True, piece, destIndex)
             else:
                 print("Move validation failed.")
+                return (False, None, None)
         else:
             print("Destination square is invalid.")
+            return (False, None, None)
+
+    # Castle            
     elif inputString.lower() == "castle":
         if castleValidate(botWhite, turn, board):
             return ("castle", None, None)
@@ -435,11 +451,78 @@ def startGame(botWhite):
             board = castle(turn, board, botWhite)
 
         
-        # Detect checkmate and draw
+        # Is enemy king safe? iskingsafe for current board, do a while loop where it locks you on the move and resets to previous tuple until isKingSafe
+
+        # Does anyone not have potential moves left? 
 
         gameStates.append(board)
 
         turn = "player" if turn == "bot" else "bot"
+
+def isKingSafe(board, turn):
+    casePiece = 'K' if turn == 'bot' else 'k'
+    king_position = findPiece(casePiece, board)
+    enemy = 'player' if turn == 'bot' else 'bot'
+    
+    # Directions for knight moves
+    knight_moves = [15, 17, -15, -17, 10, 6, -10, -6]
+
+    # Directions for rook/queen (horizontal and vertical)
+    directions = [1, -1, 8, -8]
+
+    # Directions for bishop/queen (diagonals)
+    diagonals = [9, -9, 7, -7]
+
+    # Pawn attack directions
+    pawn_attacks = [-9, -7] if turn == 'bot' else [9, 7]
+
+    # Check for pawn attacks
+    for attack in pawn_attacks:
+        if isOnBoard(king_position, attack):
+            piece = board[king_position + attack]
+            if piece and piece.lower()[0] == 'p' and (piece.islower() if enemy == 'player' else piece.isupper()):
+                print("Pawn issue")
+                return False
+
+    # Check for linear attacks from rooks, queens, bishops
+    for direction in directions + diagonals:
+        index = king_position + direction
+        while isOnBoard(king_position, direction):
+            piece = board[index]
+            if piece:
+                if piece[0].lower() in ['r', 'q'] and direction in directions and (piece.islower() if enemy == 'player' else piece.isupper()):
+                    return False
+                if piece[0].lower() in ['b', 'q'] and direction in diagonals and (piece.islower() if enemy == 'player' else piece.isupper()):
+                    return False
+                break
+            index += direction
+
+    # Check for knight attacks
+    for move in knight_moves:
+
+        # If the king were a knight and made this move, would it be on the board? 
+        if isOnBoard(king_position, move):
+
+            # Is the piece at that position an enemy knight? 
+            piece = board[king_position + move]
+            if piece and piece[0].lower() == 'n' and (piece.islower() if enemy == 'player' else piece.isupper()):
+                return False
+
+    # Check if the enemy king is directly next to this king
+    for i in [-1, 1, -8, 8, -9, -7, 9, 7]:
+        if isOnBoard(king_position, i) and board[king_position + i]:
+            piece = board[king_position + i]
+            if piece and piece[0].lower() == 'k' and (piece.islower() if enemy == 'player' else piece.isupper()):
+                print("King issue")
+                return False
+
+    return True
+
+def isOnBoard(position, move): # Checks if a move is on the board
+    new_position = position + move
+    if new_position < 0 or new_position >= 64:
+        return False
+    return True
 
 
 def getAllMoves(piece, originalBoard): # Returns an array of all possible game tuples for a piece 
