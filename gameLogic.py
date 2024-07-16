@@ -236,29 +236,26 @@ def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with
 
 def moveValidate(piece, dest, turn, board, botWhite, gameStates):
 
-    # Error handling
     validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
     
     if not validTurn:
         return False 
 
-    # Ensuring dest is a string before finding index
     if isinstance(dest, str):
         destIndex = findSquare(dest)
     else:
         destIndex = dest  # Assuming dest is already an index if not a string
 
-    # Finding current index of the piece on the board
     currIndex = findPiece(piece, board)
+    if currIndex == -1 or destIndex is False:
+        return False  # Early exit if no valid current or destination index
 
-    if destIndex is False:
-        return False  # Early exit if destination index was not found due to invalid input
+    colDiff = (destIndex % 8) - (currIndex % 8)
+    rowDiff = (destIndex // 8) - (currIndex // 8)
 
-    # Calculate column and row differences
-    colDiff = (destIndex % 8) - (currIndex % 8)  # Positive if dest is to the right
-    rowDiff = (destIndex // 8) - (currIndex // 8)  # Positive if dest is below
-
-
+    # Check if the destination square is not blocked by a friendly piece
+    if board[destIndex] is not None and ((turn == 'bot' and board[destIndex][0].isupper()) or (turn == 'player' and board[destIndex][0].islower())):
+        return False
 
     #Move validity checking
     match piece[0].lower():

@@ -1,5 +1,5 @@
 from gameLogic import *
-import random
+import random, datetime
     
 
 def scoreMove(board, botWhite, gameStates):
@@ -64,40 +64,51 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
 
     return score
 
-def calculateMove(moves, botWhite, gameStates):
-    if not moves:  # Check if moves list is empty
-        print("No moves available.")
-        return None
+def minimax(board, depth, is_maximizing_player, botWhite, gameStates):
+    if depth == 0 or detectCheckmate(board, 'player', botWhite, gameStates) or detectCheckmate(board, 'bot', botWhite, gameStates):
+        return scoreMove(board, botWhite, gameStates) if is_maximizing_player else scoreMoveForEnemy(board, botWhite, gameStates)
 
+    if is_maximizing_player:
+        max_eval = float('-inf')
+        moves = getAllTeamMoves('bot', board, botWhite, gameStates)  # Assuming it's bot's turn
+        for piece_moves in moves:
+            for move in piece_moves:
+                eval = minimax(move, depth - 1, False, botWhite, gameStates)
+                max_eval = max(max_eval, eval)
+        return max_eval
+    else:
+        min_eval = float('inf')
+        moves = getAllTeamMoves('player', board, botWhite, gameStates)  # Assuming it's player's turn
+        for piece_moves in moves:
+            for move in piece_moves:
+                eval = minimax(move, depth - 1, True, botWhite, gameStates)
+                min_eval = min(min_eval, eval)
+        return min_eval
+
+def calculateMove(moves, botWhite, gameStates, depth):
     best_score = float('-inf')
     best_move = None
 
-    # Iterate through all moves and calculate their scores
+    # Iterate through all moves and calculate their scores using minimax
     for piece_moves in moves:
         if piece_moves:  # Ensure there are moves available for the piece
             for move in piece_moves:
-                current_score = scoreMove(move, botWhite, gameStates)
+                current_score = minimax(move, depth - 1, False, botWhite, gameStates)  # Start with the opponent's move (minimizing player)
                 if current_score > best_score:
                     best_score = current_score
                     best_move = move
 
     if best_move:
-        #print("Best move selected:", best_move, "with score:", best_score)
-        print("Best move score: ",best_score)
+        print("Best move score:", best_score)
         return best_move
     else:
         print("No valid moves found.")
         return None
-    
-    # Currently randomly picks move
-    # In future, will call each possible move, and from there, call each of the opponent's possible moves. 
-    # It'll cut off the top N moves, average them, and pick the one with the highest average
 
-
-def botMove(board, turn, gameStates, botWhite):
+def botMove(board, turn, gameStates, botWhite, depth=2):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         print("Failed to generate any moves for the bot.")
         return None
     
-    return calculateMove(moves, botWhite, gameStates)
+    return calculateMove(moves, botWhite, gameStates, depth)
