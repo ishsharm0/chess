@@ -391,15 +391,21 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
                     return True
 
             # En passant     
-            if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
-                if len(gameStates) > 2: #Checking previous game state
-
+            if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1) and board[destIndex] is None:
+                if len(gameStates) > 2:  # Need at least two game states to check the last move
                     lastBoard = gameStates[-2]
-                    lastMovedPiece = lastBoard[destIndex + 8] if turn == 'player' else lastBoard[destIndex - 8]
-                    if lastMovedPiece is not None:     
-                        if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
-                            if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:                            
-                                return True
+                    lastMovedIndex = destIndex + (8 if turn == 'player' else -8)
+
+                    # Check if the last moved index is on the board
+                    if 0 <= lastMovedIndex < 64:
+                        lastMovedPiece = lastBoard[lastMovedIndex]
+
+                        if lastMovedPiece is not None:
+                            if lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:
+                                # Ensure that the pawn moved two squares in the previous move
+                                if (lastMovedPiece.islower() and findPiece(lastMovedPiece, board) == lastMovedIndex - 16) or \
+                                (lastMovedPiece.isupper() and findPiece(lastMovedPiece, board) == lastMovedIndex + 16):
+                                    return True
             return False
 
     if turn == 'bot':

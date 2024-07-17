@@ -28,7 +28,7 @@ def scoreMove(board, botWhite, gameStates):
     if not (isKingSafe(board, 'player')): 
         score += 4
     elif not isKingSafe(board, 'bot'):
-        score -= 4
+        score -= 10
 
     return score
     

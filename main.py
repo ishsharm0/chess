@@ -21,11 +21,11 @@ def startGame(botWhite):
     gameStates.append(board)
 
     while not terminated: 
-
+        printBoard(board)
         while True: # Checking if move is valid
 
             # Printing board and turn information
-            printBoard(board)
+            
             print("\nTurn:", turn.upper(), "\n")
 
             # If the king is in check, notify the player
