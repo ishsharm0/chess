@@ -535,7 +535,7 @@ def inputValidate(inputString, board, botWhite, turn, gameStates):
     inputParts = inputString.strip().split()  # Ensure input is properly split
 
     # Normal move
-    if len(inputParts) == 2 and inputParts[0] in board:
+    if len(inputParts) == 2 and inputParts[0] in board and findSquare(inputParts[1].lower()):
         piece = inputParts[0]
         dest = inputParts[1]
         destIndex = findSquare(dest)

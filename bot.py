@@ -148,9 +148,11 @@ def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
 
     # Add only the pruned nodes to the tree
     for child in pruned_children:
-        node.add_child(child)
-        # Recursively build the tree for the pruned moves
-        moveTreeBuilder(child, depth - 1, pruneRate, 'player' if turn == 'bot' else 'bot', botWhite, gameStates)
+        # Ensure the king is safe after the move before adding the child to the tree
+        if isKingSafe(child.board, turn):
+            node.add_child(child)
+            # Recursively build the tree for the pruned moves
+            moveTreeBuilder(child, depth - 1, pruneRate, 'player' if turn == 'bot' else 'bot', botWhite, gameStates)
 
     # Calculate the node score based on the average of child scores
     if pruned_children:
