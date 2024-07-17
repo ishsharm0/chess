@@ -50,45 +50,50 @@ def isKingSafe(board, turn):
     casePiece = 'K' if turn == 'bot' else 'k'
     kingPosition = findPiece(casePiece, board)
     if kingPosition == -1:
-        return False  # King not found, possibly a board setup issue.
+        return False  # King not found on board
 
     enemy = 'player' if turn == 'bot' else 'bot'
     
     # Directions for knight moves
     knightMoves = [15, 17, -15, -17, 10, 6, -10, -6]
-
     # Directions for rook/queen (horizontal and vertical)
     directions = [1, -1, 8, -8]
-
     # Directions for bishop/queen (diagonals)
     diagonals = [9, -9, 7, -7]
 
-    # Pawn attack directions
+    # Check pawn attacks
     pawnAttacks = [-9, -7] if turn == 'bot' else [9, 7]
-
-    # Check for pawn attacks
     for attack in pawnAttacks:
         pos = kingPosition + attack
-        if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'p', enemy):
+        if isOnBoard(pos) and isEnemyPiece(board, pos, 'p', enemy):
             return False
 
-    # Check for linear attacks from rooks, queens, bishops
-    for direction in directions + diagonals:
-        pos = kingPosition + direction
+    # Check horizontal and vertical threats (from rooks and queens)
+    for direction in directions:
+        step = direction
+        pos = kingPosition + step
         while isOnBoard(pos) and not crossesBorder(kingPosition, pos):
-            piece = board[pos]
-            if piece:
-                if piece[0].lower() in ['r', 'q'] and direction in directions and isEnemyPiece(board, pos, piece[0], enemy):
+            if board[pos]:
+                if board[pos][0].lower() in ['r', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
                     return False
-                if piece[0].lower() in ['b', 'q'] and direction in diagonals and isEnemyPiece(board, pos, piece[0], enemy):
-                    return False
-                break
-            pos += direction
+                break  # A piece blocks further checking in this direction
+            pos += step
 
-    # Check for knight attacks
+    # Check diagonal threats (from bishops and queens)
+    for direction in diagonals:
+        step = direction
+        pos = kingPosition + step
+        while isOnBoard(pos) and not crossesBorder(kingPosition, pos):
+            if board[pos]:
+                if board[pos][0].lower() in ['b', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
+                    return False
+                break  # A piece blocks further checking in this direction
+            pos += step
+
+    # Check knight attacks
     for move in knightMoves:
         pos = kingPosition + move
-        if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'n', enemy):
+        if isOnBoard(pos) and isEnemyPiece(board, pos, 'n', enemy):
             return False
 
     # Check if the enemy king is directly next to this king
@@ -303,24 +308,15 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
 
         case "q":  # Queen
             if colDiff == 0:  # Vertical movement
-                step = 8 if rowDiff > 0 else -8
-                nextIndex = currIndex + step
-
-                while nextIndex != destIndex:  
-                    if board[nextIndex] is not board[destIndex]:
-                        if board[nextIndex] is not None:  
-                            return False  
-                        nextIndex += step
-                    else: 
-                        break
-                
+                step = 1 if rowDiff > 0 else -1
+                for i in range(1, abs(rowDiff)):
+                    if board[currIndex + i * 8 * step] is not None:
+                        return False  # There is a piece in the way
             elif rowDiff == 0:  # Horizontal movement
-                step = 1 if colDiff > 0 else -1  
-                nextIndex = currIndex + step  
-                while nextIndex != destIndex: 
-                    if board[nextIndex] is not None:  
-                        return False  
-                    nextIndex += step  
+                step = 1 if colDiff > 0 else -1
+                for i in range(1, abs(colDiff)):
+                    if board[currIndex + i * step] is not None:
+                        return False  # There is a piece in the way 
 
             elif abs(colDiff) == abs(rowDiff):  # Diagonal movement
                 step = 9 if colDiff > 0 and rowDiff > 0 else -9  

@@ -57,11 +57,6 @@ def startGame(botWhite):
                     print("Invalid move. This move does not resolve the check.")
             else:   
                 playerInput = input("Enter the move in format 'P3 e5'. To castle, say 'castle'. \n\n").strip() 
-                
-                if playerInput.lower() == "quit":
-                    terminated = True
-                    break
-
                 validity, piece, dest = inputValidate(playerInput, board, botWhite, turn, gameStates)
                 if validity:  
                     # Check if move results in check

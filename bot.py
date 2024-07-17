@@ -1,12 +1,12 @@
 from gameLogic import *
-import random, datetime
+import random
     
 
 def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
     values = {
         'K': 5, 'Q': 4, 'R': 3.5, 'B': 3, 'N': 2.5, 'P': 1,
-        'k': 0, 'q': -4, 'r': -3.5, 'b': -3, 'n': -2.5, 'p': -1
+        'k': 0, 'q': -6, 'r': -5, 'b': -4, 'n': -3, 'p': -2
     }
 
     score = 0
@@ -20,20 +20,20 @@ def scoreMove(board, botWhite, gameStates):
 
     # Is enemy checkmate
     if detectCheckmate(board, 'player', botWhite, gameStates):
-        score += 10  
+        score += 15  
     # Is bot checkmate
     if detectCheckmate(board, 'bot', botWhite, gameStates): 
-        score -= 10
+        score -= 15
 
     if not (isKingSafe(board, 'player')): 
-        score += 2
+        score += 4
     elif not isKingSafe(board, 'bot'):
-        score -= 2
+        score -= 4
 
     return score
     
 def scoreMoveForEnemy(board, botWhite, gameStates):
-    # Define values for each piece type, negative for bot's pieces since we're scoring for the enemy
+    # Define values for each piece type, inversely from scoreMove to assess enemy's position
     values = {
         'K': -5, 'Q': -4, 'R': -3.5, 'B': -3, 'N': -2.5, 'P': -1,
         'k': 5, 'q': 4, 'r': 3.5, 'b': 3, 'n': 2.5, 'p': 1
@@ -42,73 +42,121 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
     score = 0
     for piece in board:
         if piece:
-            # Add or subtract the value of the piece from the score
+            # Subtract bot's piece values and add enemy's piece values
             score += values.get(piece[0], 0)
 
     # Add a small random number to the score to avoid ties
     score += random.random() * 0.000001
 
-    # Is enemy (bot) checkmate
-    if detectCheckmate(board, 'bot', botWhite, gameStates):
-        score += 10  # Positive for enemy if bot is in checkmate
-
-    # Is player (enemy) checkmate
-    if detectCheckmate(board, 'player', botWhite, gameStates): 
-        score -= 10  # Negative if enemy is in checkmate, we don't want this
-
-    # Check king safety and adjust score accordingly
+    # Adjust the scoring to be more aggressive:
+    # Significantly penalize the bot's king being unsafe
     if not isKingSafe(board, 'bot'):
-        score += 2  # Positive for enemy if bot's king is not safe
-    elif not isKingSafe(board, 'player'):
-        score -= 2  # Negative if enemy's king is not safe, we don't want this
+        score += 7
+
+    # Highly reward player's moves leading to bot's checkmate
+    if detectCheckmate(board, 'bot', botWhite, gameStates):
+        score += 20
+
+    # Penalize enemy's king being unsafe less significantly than bot's king safety
+    if not isKingSafe(board, 'player'):
+        score -= 5
+
+    # Significantly reward player's moves leading to player's checkmate
+    if detectCheckmate(board, 'player', botWhite, gameStates):
+        score -= 20
 
     return score
 
-def minimax(board, depth, is_maximizing_player, botWhite, gameStates):
-    if depth == 0 or detectCheckmate(board, 'player', botWhite, gameStates) or detectCheckmate(board, 'bot', botWhite, gameStates):
-        return scoreMove(board, botWhite, gameStates) if is_maximizing_player else scoreMoveForEnemy(board, botWhite, gameStates)
 
-    if is_maximizing_player:
-        max_eval = float('-inf')
-        moves = getAllTeamMoves('bot', board, botWhite, gameStates)  # Assuming it's bot's turn
-        for piece_moves in moves:
-            for move in piece_moves:
-                eval = minimax(move, depth - 1, False, botWhite, gameStates)
-                max_eval = max(max_eval, eval)
-        return max_eval
-    else:
-        min_eval = float('inf')
-        moves = getAllTeamMoves('player', board, botWhite, gameStates)  # Assuming it's player's turn
-        for piece_moves in moves:
-            for move in piece_moves:
-                eval = minimax(move, depth - 1, True, botWhite, gameStates)
-                min_eval = min(min_eval, eval)
-        return min_eval
+def calculateMove(moves, botWhite, gameStates, turn, depth=3, pruneRate=0.2):
+    # Initialize the root node with the current board state
+    root = Node(getCurrentBoard(gameStates))
 
-def calculateMove(moves, botWhite, gameStates, depth):
-    best_score = float('-inf')
-    best_move = None
+    # Build the game tree
+    print("Building move tree...")
+    moveTreeBuilder(root, depth, pruneRate, turn, botWhite, gameStates)
 
-    # Iterate through all moves and calculate their scores using minimax
-    for piece_moves in moves:
-        if piece_moves:  # Ensure there are moves available for the piece
-            for move in piece_moves:
-                current_score = minimax(move, depth - 1, False, botWhite, gameStates)  # Start with the opponent's move (minimizing player)
-                if current_score > best_score:
-                    best_score = current_score
-                    best_move = move
-
-    if best_move:
-        print("Best move score:", best_score)
-        return best_move
-    else:
+    # After building the tree, select the move corresponding to the highest (or lowest for minimizing player) score
+    if not root.children:
         print("No valid moves found.")
         return None
 
-def botMove(board, turn, gameStates, botWhite, depth=2):
+    # Find the move with the best score
+    best_move = None
+    if turn == 'bot':  # Bot is maximizing player
+        best_score = float('-inf')
+        for child in root.children:
+            if child.score > best_score:
+                best_score = child.score
+                best_move = child.board
+    else:  # Bot is minimizing player (opponent's turn)
+        best_score = float('inf')
+        for child in root.children:
+            if child.score < best_score:
+                best_score = child.score
+                best_move = child.board
+
+    print("Best move score:", best_score)
+    return best_move
+
+def getCurrentBoard(gameStates):
+    # Assuming gameStates stores the history of the game, return the current board state
+    return gameStates[-1]  # Modify this line as necessary to fit your implementation
+
+
+def botMove(board, turn, gameStates, botWhite):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         print("Failed to generate any moves for the bot.")
         return None
     
-    return calculateMove(moves, botWhite, gameStates, depth)
+    return calculateMove(moves, botWhite, gameStates, turn)
+
+class Node:
+    def __init__(self, gameState, score=None):
+        self.board = gameState
+        self.score = score
+        self.children = []
+
+    def add_child(self, child):
+        self.children.append(child)
+
+    def __repr__(self):  # For easier debugging
+        return f"Node(score={self.score})"
+
+def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
+    if depth == 0 or detectCheckmate(node.board, turn, botWhite, gameStates):
+        # Evaluate leaf node using the appropriate scoring function
+        node.score = scoreMove(node.board, botWhite, gameStates) if turn == 'bot' else scoreMoveForEnemy(node.board, botWhite, gameStates)
+        return node.score
+
+    # Generate possible moves
+    possible_moves = getAllTeamMoves(turn, node.board, botWhite, gameStates)
+    child_nodes = []
+
+    # Evaluate each move and create nodes without recursion yet
+    for moves in possible_moves:
+        for move in moves:
+            child_node = Node(move)
+            # Score the move immediately
+            child_node.score = scoreMove(move, botWhite, gameStates) if turn == 'bot' else scoreMoveForEnemy(move, botWhite, gameStates)
+            child_nodes.append(child_node)
+
+    # Prune branches: keep only top 'pruneRate' percent moves
+    sorted_child_nodes = sorted(child_nodes, key=lambda x: x.score, reverse=turn == 'bot')
+    pruned_children = sorted_child_nodes[:int(len(sorted_child_nodes) * pruneRate)]
+
+    # Add only the pruned nodes to the tree
+    for child in pruned_children:
+        node.add_child(child)
+        # Recursively build the tree for the pruned moves
+        moveTreeBuilder(child, depth - 1, pruneRate, 'player' if turn == 'bot' else 'bot', botWhite, gameStates)
+
+    # Calculate the node score based on the average of child scores
+    if pruned_children:
+        node.score = sum(child.score for child in pruned_children) / len(pruned_children)
+    else:
+        node.score = 0
+
+
+    return node.score
