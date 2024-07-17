@@ -60,6 +60,9 @@ def startGame(botWhite):
                 validity, piece, dest = inputValidate(playerInput, board, botWhite, turn, gameStates)
                 if validity:  
                     # Check if move results in check
+                    if validity == "castle":
+                        board = castle(turn, board, botWhite)
+                        break
                     testBoard = movePiece(piece, dest, list(board), gameStates, turn)
                     if isKingSafe(testBoard, turn):
                         board = testBoard

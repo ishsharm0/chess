@@ -46,11 +46,15 @@ def detectStalemate(board, turn, botWhite, gameStates):
         return True
     else: return False
 
-def isKingSafe(board, turn):
+def isKingSafe(board, turn, position=None):
     casePiece = 'K' if turn == 'bot' else 'k'
-    kingPosition = findPiece(casePiece, board)
+    if position is None:
+        kingPosition = findPiece(casePiece, board)
+    else:
+        kingPosition = position
+
     if kingPosition == -1:
-        return False  # King not found on board
+        return False
 
     enemy = 'player' if turn == 'bot' else 'bot'
     
@@ -461,25 +465,38 @@ def enPassant(destIndex, turn, board):
     board[opponentIndex] = None  # Remove the opponent's pawn
     return tuple(board)
 
-def castleValidate(botWhite, turn, board): 
+def castleValidate(botWhite, turn, board):
     if botWhite:
         if turn == 'bot':
             kingPos = findPiece('K', board)
-            rookPos = findPiece('R2', board)
-            if kingPos == -1 or rookPos == -1:
-                return False  # King or Rook not found
-            if kingPos == 60 and rookPos == 63:
-                if board[61] is None and board[62] is None:
-                    return True
+            rookPos = findPiece('R2', board) if 'R2' in board else -1
+            critical_positions = [60, 61, 62] if kingPos == 60 and rookPos == 63 else []
+        else:
+            kingPos = findPiece('k', board)
+            rookPos = findPiece('r2', board) if 'r2' in board else -1
+            critical_positions = [4, 5, 6] if kingPos == 4 and rookPos == 7 else []
     else:
-        kingPos = findPiece('K', board) if turn == 'bot' else findPiece('k', board)
-        rookPos = findPiece('R1', board) if turn == 'bot' else findPiece('r1', board)
-        if kingPos == -1 or rookPos == -1:
-            return False  # King or Rook not found
-        if kingPos == 59 and rookPos == 56:
-            if board[57] is None and board[58] is None:
-                return True
-    return False
+        if turn == 'bot':
+            kingPos = findPiece('K', board)
+            rookPos = findPiece('R1', board) if 'R1' in board else -1
+            critical_positions = [59, 58, 57] if kingPos == 59 and rookPos == 56 else []
+        else:
+            kingPos = findPiece('k', board)
+            rookPos = findPiece('r1', board) if 'r1' in board else -1
+            critical_positions = [3, 2, 1] if kingPos == 3 and rookPos == 0 else []
+
+    if not critical_positions:  # If initial position check fails
+        return False
+
+    if not isKingSafe(board, turn):  # Check if king is currently in check
+        return False
+
+    # Check if any of the critical squares are under attack
+    for pos in critical_positions:
+        if not isKingSafe(board, turn, pos):  # Assume this function can check safety for specific positions
+            return False
+
+    return True
 
 def printBoard(board):
     if clearLogs:
@@ -557,6 +574,7 @@ def inputValidate(inputString, board, botWhite, turn, gameStates):
         if castleValidate(botWhite, turn, board):
             return ("castle", None, None)
         else:
+            #print("Reached bad")
             return (False, None, None)
     
     print("Input does not match any valid command format.")
