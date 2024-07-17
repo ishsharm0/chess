@@ -157,8 +157,12 @@ def getAllTeamMoves(team, board, botWhite, gameStates): #Returns an array of arr
                 teamMoves.append(getPieceMoves(piece, board, botWhite, gameStates))
     return tuple(teamMoves)
 
-def findPiece(piece, board): # Returns the index of a piece like P5
-    return board.index(piece)
+def findPiece(piece, board):
+    try:
+        return board.index(piece)
+    except ValueError:
+        return -1  # Return -1 or another indicator that the piece is not found
+
 
 def promotePawn(piece, board):
     while True:
@@ -353,24 +357,17 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
                 else: return False
 
             # Castling
-            if botWhite: 
-                if turn == 'player' and ('k') in board and ('r2') in board:
-                        if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
-                            if board[5] is None and board[6] is None: 
-                                return True
-                elif turn == 'bot' and ('K') in board and ('R2') in board: 
-                    if findPiece('K', board) == 60 and findPiece('R2', board) == 63: 
+            if botWhite:
+                if turn == 'bot' and 'K' in board and 'R2' in board:
+                    if findPiece('K', board) == 60 and findPiece('R2', board) == 63:
                         if board[61] is None and board[62] is None:
                             return True
             else:
-                if turn == 'player' and ('k') in board and ('r2') in board:
-                    if findPiece('k', board) == 3 and findPiece('r1', board) == 0: 
-                        if board[1] is None and board[2] is None:
-                            return True            
-                elif turn == 'bot' and ('K') in board and ('R2') in board: 
-                    if findPiece('K', board) == 59 and findPiece('R1', board) == 56: 
+                if turn == 'bot' and 'K' in board and 'R1' in board:  # Use 'R1' here if that's intended for non-botWhite side
+                    if findPiece('K', board) == 59 and findPiece('R1', board) == 56:
                         if board[57] is None and board[58] is None:
                             return True
+
             return False
 
         case "p":
@@ -459,28 +456,24 @@ def enPassant(destIndex, turn, board):
     return tuple(board)
 
 def castleValidate(botWhite, turn, board): 
-    # Check if pieces are in board
-
-    if botWhite: 
-        if turn == 'player' and ('k') in board and ('r2') in board:
-                if findPiece('k', board) == 4 and findPiece('r2', board) == 7: 
-                    if board[5] is None and board[6] is None: 
-                        return True
-        elif turn == 'bot' and ('K') in board and ('R2') in board: 
-            if findPiece('K', board) == 60 and findPiece('R2', board) == 63: 
+    if botWhite:
+        if turn == 'bot':
+            kingPos = findPiece('K', board)
+            rookPos = findPiece('R2', board)
+            if kingPos == -1 or rookPos == -1:
+                return False  # King or Rook not found
+            if kingPos == 60 and rookPos == 63:
                 if board[61] is None and board[62] is None:
                     return True
     else:
-        if turn == 'player' and ('k') in board and ('r2') in board:
-            if findPiece('k', board) == 3 and findPiece('r1', board) == 0: 
-                if board[1] is None and board[2] is None:
-                    return True            
-        elif turn == 'bot' and ('K') in board and ('R2') in board: 
-            if findPiece('K', board) == 59 and findPiece('R1', board) == 56: 
-                if board[57] is None and board[58] is None:
-                    return True
-            
-    return False 
+        kingPos = findPiece('K', board) if turn == 'bot' else findPiece('k', board)
+        rookPos = findPiece('R1', board) if turn == 'bot' else findPiece('r1', board)
+        if kingPos == -1 or rookPos == -1:
+            return False  # King or Rook not found
+        if kingPos == 59 and rookPos == 56:
+            if board[57] is None and board[58] is None:
+                return True
+    return False
 
 def printBoard(board):
     if clearLogs:

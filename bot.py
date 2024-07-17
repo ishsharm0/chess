@@ -68,7 +68,7 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
     return score
 
 
-def calculateMove(moves, botWhite, gameStates, turn, depth=3, pruneRate=0.2):
+def calculateMove(moves, botWhite, gameStates, turn, depth=3, pruneRate=0.5):
     # Initialize the root node with the current board state
     root = Node(getCurrentBoard(gameStates))
 
