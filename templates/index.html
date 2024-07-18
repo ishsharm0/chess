@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Chess Game</title>
+    <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+    <div class="container">
+        <h1>Chess Game</h1>
+        {% for message, category in get_flashed_messages(with_categories=true) %}
+        <div class="alert alert-{{ category }}">{{ message }}</div>
+        {% endfor %}
+        <div class="controls">
+            <form action="{{ url_for('active') }}" method="post">
+                <input type="text" name="move" placeholder="e.g., P6 f6">
+                <button type="submit">Make Move</button>
+                <button type="button" onclick="window.location.href='{{ url_for('index') }}'">Reset Game</button>
+            </form>
+        </div>
+        <div class="board-container">
+            <p>To promote a pawn, type the name of the piece you want to switch to (e.g., QUEEN, KNIGHT).</p>
+            <p>To castle, type CASTLE.</p>
+            <p>Current turn: {{ turn }}</p>
+            <table class="chess-board">
+                {% for i in range(8) %}
+                <tr>
+                    {% for j in range(8) %}
+                    <td class="{{ 'black' if (i+j) % 2 else 'white' }}">
+                        {{ board[i*8 + j] if board[i*8 + j] else ' ' }}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </table>
+        </div>
+    </div>
+</body>
+</html>

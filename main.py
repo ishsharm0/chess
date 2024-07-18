@@ -1,3 +1,4 @@
+# main.py
 import os, colorama
 from colorama import Style, init, Fore
 from bot import botMove

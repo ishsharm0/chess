@@ -1,6 +1,6 @@
 from gameLogic import *
 import random
-    
+import logging
 
 def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
@@ -33,7 +33,6 @@ def scoreMove(board, botWhite, gameStates):
     return score
     
 def scoreMoveForEnemy(board, botWhite, gameStates):
-    # Define values for each piece type, inversely from scoreMove to assess enemy's position
     values = {
         'K': -5, 'Q': -4, 'R': -3.5, 'B': -3, 'N': -2.5, 'P': -1,
         'k': 5, 'q': 4, 'r': 3.5, 'b': 3, 'n': 2.5, 'p': 1
@@ -68,17 +67,15 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
     return score
 
 
-def calculateMove(moves, botWhite, gameStates, turn, depth=2, pruneRate=0.5):
+def calculateMove(moves, botWhite, gameStates, turn, depth=1, pruneRate=0.3):
     # Initialize the root node with the current board state
     root = Node(getCurrentBoard(gameStates))
 
     # Build the game tree
-    print("Building move tree...")
     moveTreeBuilder(root, depth, pruneRate, turn, botWhite, gameStates)
 
     # After building the tree, select the move corresponding to the highest (or lowest for minimizing player) score
     if not root.children:
-        print("No valid moves found.")
         return None
 
     # Find the move with the best score
@@ -96,7 +93,6 @@ def calculateMove(moves, botWhite, gameStates, turn, depth=2, pruneRate=0.5):
                 best_score = child.score
                 best_move = child.board
 
-    print("Best move score:", best_score)
     return best_move
 
 def getCurrentBoard(gameStates):
@@ -107,9 +103,7 @@ def getCurrentBoard(gameStates):
 def botMove(board, turn, gameStates, botWhite):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
-        print("Failed to generate any moves for the bot.")
         return None
-    
     return calculateMove(moves, botWhite, gameStates, turn)
 
 class Node:
@@ -159,6 +153,5 @@ def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
         node.score = sum(child.score for child in pruned_children) / len(pruned_children)
     else:
         node.score = 0
-
 
     return node.score
