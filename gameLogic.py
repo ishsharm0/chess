@@ -169,18 +169,22 @@ def findPiece(piece, board):
         return -1  # Return -1 or another indicator that the piece is not found
 
 
-def promotePawn(piece, dest, new_piece, board):
-    board = list(board)
+def promotePawn(piece, dest, new_piece, board, turn):
+    if turn == "bot": 
+        name = 'q'
+    else: 
+        # Determine the new piece abbreviation
+        if new_piece == "QUEEN":
+            name = "q"
+        elif new_piece == "KNIGHT":
+            name = "n"
+        elif new_piece == "BISHOP":
+            name = "b"
+        elif new_piece == "ROOK":
+            name = "r"
 
-    # Determine the new piece abbreviation
-    if new_piece == "QUEEN":
-        name = "q"
-    elif new_piece == "KNIGHT":
-        name = "n"
-    elif new_piece == "BISHOP":
-        name = "b"
-    elif new_piece == "ROOK":
-        name = "r"
+
+    board = list(board)
 
     # Detects and names new pieces
     count = 1
@@ -214,10 +218,10 @@ def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with
         
         if piece[0] == 'p': 
             if currIndex // 8 == 6:
-                board = promotePawn(piece, board)
+                board = promotePawn(piece, board, turn)
         elif piece[0] == 'P': 
             if currIndex // 8 == 1:
-                board = promotePawn(piece, board)
+                board = promotePawn(piece, board, turn)
         if piece[0].lower() == 'p': 
             if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
                     
