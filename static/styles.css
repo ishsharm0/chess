@@ -14,13 +14,28 @@ body {
 }
 
 .container {
-    text-align: center;
     max-width: 1200px;
     margin: auto;
     padding: 20px;
     background: white;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
     border-radius: 10px;
+}
+
+.chess-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.board-container {
+    flex: 1;
+    text-align: left;
+}
+
+.info-container {
+    flex: 1;
+    padding: 20px;
 }
 
 h1 {
@@ -74,9 +89,23 @@ button:hover {
     margin: 10px 0;
 }
 
-.board-container {
-    display: inline-block;
-    text-align: left;
+.instructions {
+    font-size: 16px;
+    color: #333;
+}
+
+.promotion-dropdown {
+    padding: 10px;
+    border-radius: 8px;
+    border: 2px solid #8C52FF;
+    font-family: 'Roboto', sans-serif;
+    margin-right: 10px;
+    font-size: 16px;
+}
+
+.promotion-form {
+    display: flex;
+    align-items: center;
 }
 
 .chess-board {
@@ -112,10 +141,13 @@ button:hover {
     transform: scale(1.05);
 }
 
-p {
-    text-align: left;
-    font-size: 16px;
-    color: #333;
-    margin: 5px 0;
-    font-family: 'Roboto', sans-serif;
+.turn-display {
+    font-size: 18px;
+    font-weight: bold;
+    margin-top: 20px;
+}
+
+.turn-display span {
+    color: #8C52FF;
+    font-size: 20px;
 }

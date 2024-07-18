@@ -169,43 +169,34 @@ def findPiece(piece, board):
         return -1  # Return -1 or another indicator that the piece is not found
 
 
-def promotePawn(piece, board):
-    while True:
-        playerInput = input("Enter the name of the piece you would like to switch for ('QUEEN', 'KNIGHT', 'BISHOP', 'ROOK'). If you don't want to promote, enter 'NO': \n\n").strip().upper()
-        if playerInput in ("QUEEN", "KNIGHT", "BISHOP", "ROOK"):
-            break
-        elif playerInput == "NO":
-            return(board)
-        else:
-            print("Invalid piece. Try again!")
+def promotePawn(piece, dest, new_piece, board):
+    board = list(board)
 
     # Determine the new piece abbreviation
-    if playerInput == "QUEEN":
+    if new_piece == "QUEEN":
         name = "q"
-    elif playerInput == "KNIGHT":
+    elif new_piece == "KNIGHT":
         name = "n"
-    elif playerInput == "BISHOP":
+    elif new_piece == "BISHOP":
         name = "b"
-    elif playerInput == "ROOK":
+    elif new_piece == "ROOK":
         name = "r"
 
-    # Detects and names new pieces 
+    # Detects and names new pieces
     count = 1
-    for existingPiece in board:
-        if existingPiece and existingPiece[0].lower() == name:
-            existingCount = int(existingPiece[1:]) if len(existingPiece) > 1 and existingPiece[1:].isdigit() else 1
-            count = max(count, existingCount + 1)
+    for existing_piece in board:
+        if existing_piece and existing_piece[0].lower() == name:
+            existing_count = int(existing_piece[1:]) if len(existing_piece) > 1 and existing_piece[1:].isdigit() else 1
+            count = max(count, existing_count + 1)
 
-    newPiece = name + str(count)
-    newPiece = newPiece.upper() if piece.isupper() else newPiece.lower()
+    new_piece_name = name + str(count)
+    new_piece_name = new_piece_name.upper() if piece.isupper() else new_piece_name.lower()
 
     # Update board
-    board = list(board)
-    pawnIndex = findPiece(piece, board)
-    if pawnIndex != -1:
-        board[pawnIndex] = newPiece
-
+    board[dest] = new_piece_name
     return tuple(board)
+
+
 
 def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with updated board
     try:
