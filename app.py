@@ -1,4 +1,3 @@
-# app.py
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
 from bot import botMove
@@ -50,17 +49,27 @@ def make_move():
             session['turn'] = 'bot'
             response['status'] = 'castle'
         elif validity:
-            session['board'] = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
-            session['gameStates'].append(session['board'])
+            test_board = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
+            if isKingSafe(test_board, session['turn']):
+                session['board'] = test_board
+                session['gameStates'].append(session['board'])
 
-            if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
-                session['promote'] = True
-                session['promotion_piece'] = piece
-                session['promotion_dest'] = dest
-                response['status'] = 'promote'
+                checkmate_status = checkCheckmateOrStalemate(session['board'], session['turn'], session['botWhite'], session['gameStates'])
+                if checkmate_status == 'checkmate':
+                    response['status'] = 'checkmate'
+                elif checkmate_status == 'stalemate':
+                    response['status'] = 'stalemate'
+                else:
+                    if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
+                        session['promote'] = True
+                        session['promotion_piece'] = piece
+                        session['promotion_dest'] = dest
+                        response['status'] = 'promote'
+                    else:
+                        session['turn'] = 'bot'
+                        response['status'] = 'success'
             else:
-                session['turn'] = 'bot'
-                response['status'] = 'success'
+                response['status'] = 'invalid - king in check'
         else:
             response['status'] = 'invalid'
 
@@ -68,9 +77,6 @@ def make_move():
     response['turn'] = session['turn']
     response['promote'] = session['promote']
     return jsonify(response)
-
-
-
 
 @app.route('/bot_move', methods=['POST'])
 def bot_move():
@@ -81,14 +87,24 @@ def bot_move():
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)
-            session['turn'] = 'player'
-            response['status'] = 'success'
+
+            checkmate_status = checkCheckmateOrStalemate(session['board'], 'player', session['botWhite'], session['gameStates'])
+            if checkmate_status == 'checkmate':
+                response['status'] = 'checkmate'
+            elif checkmate_status == 'stalemate':
+                response['status'] = 'stalemate'
+            else:
+                session['turn'] = 'player'
+                response['status'] = 'success'
         else:
-            response['status'] = 'error'
+            response['status'] = 'checkmate'  # No valid moves left, indicating checkmate
+    else:
+        response['status'] = 'error'
 
     response['board'] = session['board']
     response['turn'] = session['turn']
     return jsonify(response)
+
 
 if __name__ == '__main__':
     app.run(debug=True)

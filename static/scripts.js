@@ -20,8 +20,14 @@ function makeMove() {
                 }
             } else if (response.status === 'promote') {
                 showPromotionForm();
+            } else if (response.status === 'checkmate') {
+                alert("Checkmate! Game over.");
+                resetGame();
+            } else if (response.status === 'stalemate') {
+                alert("Stalemate! Game over.");
+                resetGame();
             } else {
-                alert("Invalid move!");
+                alert(response.status);
             }
         },
         error: function() {
@@ -36,12 +42,22 @@ function botMove() {
         type: "POST",
         success: function(response) {
             updateBoard(response.board, response.turn);
+            if (response.status === 'checkmate') {
+                alert("Checkmate! Game over.");
+                resetGame();
+            } else if (response.status === 'stalemate') {
+                alert("Stalemate! Game over.");
+                resetGame();
+            } else if (response.status !== 'success') {
+                alert("Error with bot move.");
+            }
         },
         error: function() {
             alert("Error with bot move.");
         }
     });
 }
+
 
 function updateBoard(board, turn) {
     // Update the board cells with the new board state
@@ -67,9 +83,11 @@ $(document).ready(function() {
     $(".chess-board td").on("click", function() {
         let cellId = $(this).attr('id');
         let cellIndex = parseInt(cellId.split('-')[1]);
+        let piece = $(this).text().trim();
+
         if (!selectedPiece) {
             // Select a piece
-            selectedPiece = $(this).text().trim();
+            selectedPiece = piece;
             selectedCell = cellIndex;
             if (!selectedPiece) {
                 selectedPiece = null;
@@ -78,35 +96,50 @@ $(document).ready(function() {
                 $(this).addClass('selected');
             }
         } else {
-            // Make a move
-            let moveInput = selectedPiece + ' ' + cellId.split('-')[1];
-            $.ajax({
-                url: "/make_move",
-                type: "POST",
-                contentType: "application/json",
-                data: JSON.stringify({ move: moveInput }),
-                success: function(response) {
-                    updateBoard(response.board, response.turn);
-                    if (response.status === 'success' || response.status === 'castle') {
-                        if (response.turn === 'bot') {
-                            botMove();
+            // If clicking on another player piece, switch the selected piece
+            if (piece && ((selectedPiece.toLowerCase() === selectedPiece && piece.toLowerCase() === piece) || 
+                          (selectedPiece.toUpperCase() === selectedPiece && piece.toUpperCase() === piece))) {
+                $(".chess-board td").removeClass('selected');
+                selectedPiece = piece;
+                selectedCell = cellIndex;
+                $(this).addClass('selected');
+            } else {
+                // Make a move
+                let moveInput = selectedPiece + ' ' + cellIndex;
+                $.ajax({
+                    url: "/make_move",
+                    type: "POST",
+                    contentType: "application/json",
+                    data: JSON.stringify({ move: moveInput }),
+                    success: function(response) {
+                        updateBoard(response.board, response.turn);
+                        if (response.status === 'success' || response.status === 'castle') {
+                            if (response.turn === 'bot') {
+                                botMove();
+                            }
+                        } else if (response.status === 'promote') {
+                            showPromotionForm();
+                        } else if (response.status === 'checkmate') {
+                            alert("Checkmate! Game over.");
+                            resetGame();
+                        } else if (response.status === 'stalemate') {
+                            alert("Stalemate! Game over.");
+                            resetGame();
+                        } else {
+                            alert(response.status);
                         }
-                    } else if (response.status === 'promote') {
-                        showPromotionForm();
-                    } else {
-                        alert("Invalid move!");
+                        selectedPiece = null;
+                        selectedCell = null;
+                        $(".chess-board td").removeClass('selected');
+                    },
+                    error: function() {
+                        alert("Error making move.");
+                        selectedPiece = null;
+                        selectedCell = null;
+                        $(".chess-board td").removeClass('selected');
                     }
-                    selectedPiece = null;
-                    selectedCell = null;
-                    $(".chess-board td").removeClass('selected');
-                },
-                error: function() {
-                    alert("Error making move.");
-                    selectedPiece = null;
-                    selectedCell = null;
-                    $(".chess-board td").removeClass('selected');
-                }
-            });
+                });
+            }
         }
     });
 });

@@ -571,4 +571,10 @@ def inputValidate(inputString, board, botWhite, turn, gameStates):
     
     print("Input does not match any valid command format.")
     return (False, None, None)
-    
+
+def checkCheckmateOrStalemate(board, turn, botWhite, gameStates):
+    if detectCheckmate(board, turn, botWhite, gameStates):
+        return 'checkmate'
+    if detectStalemate(board, turn, botWhite, gameStates):
+        return 'stalemate'
+    return 'none'
