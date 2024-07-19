@@ -14,7 +14,7 @@ body {
 }
 
 .selected {
-    background-color: yellow;
+    background-color: rgb(255, 135, 55) !important;
 }
 
 .container {

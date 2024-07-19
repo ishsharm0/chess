@@ -7,6 +7,7 @@ function resetGame() {
 
 function makeMove() {
     var moveInput = $("input[name='move']").val();
+    console.log(`Making move with input: ${moveInput}`);
     $.ajax({
         url: "/make_move",
         type: "POST",
@@ -14,6 +15,7 @@ function makeMove() {
         data: JSON.stringify({ move: moveInput }),
         success: function(response) {
             updateBoard(response.board, response.turn);
+            console.log(`Move result: ${response.status}`);
             if (response.status === 'success' || response.status === 'castle') {
                 if (response.turn === 'bot') {
                     botMove();
@@ -42,14 +44,13 @@ function botMove() {
         type: "POST",
         success: function(response) {
             updateBoard(response.board, response.turn);
+            console.log(`Bot move result: ${response.status}`);
             if (response.status === 'checkmate') {
                 alert("Checkmate! Game over.");
                 resetGame();
             } else if (response.status === 'stalemate') {
                 alert("Stalemate! Game over.");
                 resetGame();
-            } else if (response.status !== 'success') {
-                alert("Error with bot move.");
             }
         },
         error: function() {
@@ -58,8 +59,8 @@ function botMove() {
     });
 }
 
-
 function updateBoard(board, turn) {
+    console.log(`Updating board. Turn: ${turn}`);
     // Update the board cells with the new board state
     var cells = document.querySelectorAll(".chess-board td");
     for (var i = 0; i < cells.length; i++) {
@@ -85,6 +86,8 @@ $(document).ready(function() {
         let cellIndex = parseInt(cellId.split('-')[1]);
         let piece = $(this).text().trim();
 
+        console.log(`Clicked cell: ${cellId}, piece: ${piece}, cellIndex: ${cellIndex}`);
+
         if (!selectedPiece) {
             // Select a piece
             selectedPiece = piece;
@@ -93,7 +96,9 @@ $(document).ready(function() {
                 selectedPiece = null;
                 selectedCell = null;
             } else {
+                $(".chess-board td").removeClass('selected');
                 $(this).addClass('selected');
+                console.log(`Selected piece: ${selectedPiece} at cell: ${selectedCell}`);
             }
         } else {
             // If clicking on another player piece, switch the selected piece
@@ -103,9 +108,11 @@ $(document).ready(function() {
                 selectedPiece = piece;
                 selectedCell = cellIndex;
                 $(this).addClass('selected');
+                console.log(`Switched selected piece to: ${selectedPiece} at cell: ${selectedCell}`);
             } else {
                 // Make a move
                 let moveInput = selectedPiece + ' ' + cellIndex;
+                console.log(`Move input: ${moveInput}`);
                 $.ajax({
                     url: "/make_move",
                     type: "POST",
@@ -113,6 +120,7 @@ $(document).ready(function() {
                     data: JSON.stringify({ move: moveInput }),
                     success: function(response) {
                         updateBoard(response.board, response.turn);
+                        console.log(`Move result: ${response.status}`);
                         if (response.status === 'success' || response.status === 'castle') {
                             if (response.turn === 'bot') {
                                 botMove();
@@ -142,4 +150,13 @@ $(document).ready(function() {
             }
         }
     });
+
+    $(".chess-board td").hover(
+        function() {
+            $(this).addClass('hover');
+        },
+        function() {
+            $(this).removeClass('hover');
+        }
+    );
 });
