@@ -69,12 +69,15 @@ def make_move():
     response['promote'] = session['promote']
     return jsonify(response)
 
+
+
+
 @app.route('/bot_move', methods=['POST'])
 def bot_move():
     logging.debug("Bot Move called")
     response = {}
     if session['turn'] == 'bot':
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], 3, 0.3)
+        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], 2, 0.3)
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)

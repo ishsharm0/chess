@@ -547,31 +547,28 @@ def inputValidate(inputString, board, botWhite, turn, gameStates):
     print("Validating input")
     inputParts = inputString.strip().split()  # Ensure input is properly split
 
-    # Normal move
-    if len(inputParts) == 2 and inputParts[0] in board and findSquare(inputParts[1].lower()):
+    if len(inputParts) == 2:
         piece = inputParts[0]
         dest = inputParts[1]
-        destIndex = findSquare(dest)
-
-        if destIndex is not False:
+        destIndex = int(dest) if dest.isdigit() else findSquare(dest)
+        if piece in board:
             print(f"Command parsed as move: {piece} to {dest} (index {destIndex})")
             if moveValidate(piece, destIndex, turn, board, botWhite, gameStates):
-                print("destIndex", destIndex)
                 return (True, piece, destIndex)
             else:
                 print("Move validation failed.")
                 return (False, None, None)
         else:
-            print("Destination square is invalid.")
+            print("Piece not found on board.")
             return (False, None, None)
-
+    
     # Castle            
     elif inputString.lower() == "castle":
         if castleValidate(botWhite, turn, board):
             return ("castle", None, None)
         else:
-            #print("Reached bad")
             return (False, None, None)
     
     print("Input does not match any valid command format.")
     return (False, None, None)
+    

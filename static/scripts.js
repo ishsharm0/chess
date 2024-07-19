@@ -1,4 +1,6 @@
-// static/scripts.js
+let selectedPiece = null;
+let selectedCell = null;
+
 function resetGame() {
     window.location.href = "/";  // Redirect to the index route to reset the game
 }
@@ -60,5 +62,51 @@ $(document).ready(function() {
     $("#move-form").on("submit", function(event) {
         event.preventDefault();
         makeMove();
+    });
+
+    $(".chess-board td").on("click", function() {
+        let cellId = $(this).attr('id');
+        let cellIndex = parseInt(cellId.split('-')[1]);
+        if (!selectedPiece) {
+            // Select a piece
+            selectedPiece = $(this).text().trim();
+            selectedCell = cellIndex;
+            if (!selectedPiece) {
+                selectedPiece = null;
+                selectedCell = null;
+            } else {
+                $(this).addClass('selected');
+            }
+        } else {
+            // Make a move
+            let moveInput = selectedPiece + ' ' + cellId.split('-')[1];
+            $.ajax({
+                url: "/make_move",
+                type: "POST",
+                contentType: "application/json",
+                data: JSON.stringify({ move: moveInput }),
+                success: function(response) {
+                    updateBoard(response.board, response.turn);
+                    if (response.status === 'success' || response.status === 'castle') {
+                        if (response.turn === 'bot') {
+                            botMove();
+                        }
+                    } else if (response.status === 'promote') {
+                        showPromotionForm();
+                    } else {
+                        alert("Invalid move!");
+                    }
+                    selectedPiece = null;
+                    selectedCell = null;
+                    $(".chess-board td").removeClass('selected');
+                },
+                error: function() {
+                    alert("Error making move.");
+                    selectedPiece = null;
+                    selectedCell = null;
+                    $(".chess-board td").removeClass('selected');
+                }
+            });
+        }
     });
 });

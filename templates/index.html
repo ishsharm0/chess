@@ -14,7 +14,7 @@
                     {% for i in range(8) %}
                     <tr>
                         {% for j in range(8) %}
-                        <td class="{{ 'black' if (i+j) % 2 else 'white' }}">
+                        <td id="cell-{{ i*8 + j }}" class="{{ 'black' if (i+j) % 2 else 'white' }}">
                             {{ board[i*8 + j] if board[i*8 + j] else ' ' }}
                         </td>
                         {% endfor %}

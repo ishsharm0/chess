@@ -1,3 +1,4 @@
+# bot.py
 from gameLogic import *
 import random
 import logging
