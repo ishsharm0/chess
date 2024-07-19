@@ -67,7 +67,7 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
     return score
 
 
-def calculateMove(moves, botWhite, gameStates, turn, depth=1, pruneRate=0.3):
+def calculateMove(moves, botWhite, gameStates, turn, depth, pruneRate):
     # Initialize the root node with the current board state
     root = Node(getCurrentBoard(gameStates))
 
@@ -100,11 +100,11 @@ def getCurrentBoard(gameStates):
     return gameStates[-1]  # Modify this line as necessary to fit your implementation
 
 
-def botMove(board, turn, gameStates, botWhite):
+def botMove(board, turn, gameStates, botWhite, depth=2, pruneRate=0.3):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         return None
-    return calculateMove(moves, botWhite, gameStates, turn)
+    return calculateMove(moves, botWhite, gameStates, turn, depth, pruneRate)
 
 class Node:
     def __init__(self, gameState, score=None):

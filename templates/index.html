@@ -3,11 +3,8 @@
 <head>
     <title>Chess Game</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
-    <script type="text/javascript">
-        function resetGame() {
-            window.location.href = "{{ url_for('index') }}";
-        }
-    </script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </head>
 <body>
     <div class="container">
@@ -43,7 +40,7 @@
                         <button type="submit">Promote</button>
                     </form>
                     {% else %}
-                    <form action="{{ url_for('active') }}" method="post">
+                    <form id="move-form">
                         <input type="text" name="move" placeholder="e.g., P6 f6">
                         <button type="submit">Make Move</button>
                         <button type="button" onclick="resetGame();">Reset Game</button>

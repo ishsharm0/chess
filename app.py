@@ -1,4 +1,5 @@
-from flask import Flask, request, redirect, url_for, session, render_template, flash
+# app.py
+from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
 from bot import botMove
 import logging
@@ -31,64 +32,60 @@ def index():
 
     return redirect(url_for('active'))
 
-@app.route('/active', methods=['GET', 'POST'])
+@app.route('/active', methods=['GET'])
 def active():
     logging.debug("Active page called")
-
-    if request.method == 'POST':
-        if 'promotion_piece' in request.form:
-            piece = session['promotion_piece']
-            dest = session['promotion_dest']
-            new_piece = request.form['promotion_piece']
-            session['board'] = promotePawn(piece, dest, new_piece, session['board'])
-            session['gameStates'].append(session['board'])
-            session['turn'] = 'bot'
-            session['promote'] = False
-            logging.debug("Pawn promoted, bot's turn next.")
-            return redirect(url_for('move'))
-
-        move_input = request.form.get('move')
-        if move_input:
-            validity, piece, dest = inputValidate(move_input, session['board'], session['botWhite'], session['turn'], session['gameStates'])
-            if validity == "castle":
-                session['board'] = castle(session['turn'], session['board'], session['botWhite'])
-                session['gameStates'].append(session['board'])
-                session['turn'] = 'bot'
-                logging.debug("Player castled successfully, bot's turn next.")
-                return redirect(url_for('move'))
-            elif validity:
-                session['board'] = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
-                session['gameStates'].append(session['board'])
-
-                if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
-                    session['promote'] = True
-                    session['promotion_piece'] = piece
-                    session['promotion_dest'] = dest
-                    return redirect(url_for('active'))
-
-                session['turn'] = 'bot'
-                logging.debug("Player moved successfully, bot's turn next.")
-                return redirect(url_for('move'))
-            else:
-                flash('Invalid move!', 'error')
-
     return render_template('index.html', board=session['board'], turn=session['turn'], promote=session['promote'])
 
-@app.route('/move', methods=['GET'])
-def move():
+@app.route('/make_move', methods=['POST'])
+def make_move():
+    logging.debug("Make move called")
+    response = {}
+    move_input = request.json.get('move')
+    if move_input:
+        validity, piece, dest = inputValidate(move_input, session['board'], session['botWhite'], session['turn'], session['gameStates'])
+        if validity == "castle":
+            session['board'] = castle(session['turn'], session['board'], session['botWhite'])
+            session['gameStates'].append(session['board'])
+            session['turn'] = 'bot'
+            response['status'] = 'castle'
+        elif validity:
+            session['board'] = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
+            session['gameStates'].append(session['board'])
+
+            if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
+                session['promote'] = True
+                session['promotion_piece'] = piece
+                session['promotion_dest'] = dest
+                response['status'] = 'promote'
+            else:
+                session['turn'] = 'bot'
+                response['status'] = 'success'
+        else:
+            response['status'] = 'invalid'
+
+    response['board'] = session['board']
+    response['turn'] = session['turn']
+    response['promote'] = session['promote']
+    return jsonify(response)
+
+@app.route('/bot_move', methods=['POST'])
+def bot_move():
     logging.debug("Bot Move called")
+    response = {}
     if session['turn'] == 'bot':
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
+        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], 3, 0.3)
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)
             session['turn'] = 'player'
-            logging.debug("Bot made a move, switching to player")
+            response['status'] = 'success'
         else:
-            logging.error("Bot failed to make a valid move")
-            flash('Bot failed to make a move.', 'error')
+            response['status'] = 'error'
 
-    return redirect(url_for('active'))
+    response['board'] = session['board']
+    response['turn'] = session['turn']
+    return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=True)
