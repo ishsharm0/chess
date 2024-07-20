@@ -1,5 +1,6 @@
 # Chess
 A Python chess game where you can play against a bot.
+You can play at https://chess-iota-brown.vercel.app/.
 
 Game, bot, and website all developed by [starryxvii](https://github.com/starryxvii/) and [rosharma719](https://github.com/rosharma719/).
 ## Setup + Running Locally (Windows)
