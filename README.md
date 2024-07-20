@@ -1,7 +1,8 @@
 # Chess
-A python chess game where you can play against a bot.
+A Python chess game where you can play against a bot.
 
-## Setup + Running Locally (windows)
+Game, bot, and website all developed by [starryxvii](https://github.com/starryxvii/) and [rosharma719](https://github.com/rosharma719/).
+## Setup + Running Locally (Windows)
 
 Prerequisites:
 - [Python 3.8+](https://www.python.org/downloads/)
@@ -13,5 +14,8 @@ Run these commands in a directory of your choice:
 git clone https://github.com/starryxvii/chess.git
 cd chess
 pip install -r requirements.txt
+echo SECRET_KEY=MySecretKey > .env
 python app.py
 ```
+
+To play the game in your console, simply run `python consoleMode.py` instead of `python app.py`.

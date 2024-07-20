@@ -1,12 +1,12 @@
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
 from bot import botMove
-import logging
-import random
+import logging, random, dotenv
+
+dotenv.load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = 'your_secret_key'  # Use a real key in production
-
+app.secret_key = os.getenv('SECRET_KEY')  # Use a real key in production
 logging.basicConfig(level=logging.DEBUG)
 
 @app.route('/', methods=['GET'])
@@ -49,27 +49,17 @@ def make_move():
             session['turn'] = 'bot'
             response['status'] = 'castle'
         elif validity:
-            test_board = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
-            if isKingSafe(test_board, session['turn']):
-                session['board'] = test_board
-                session['gameStates'].append(session['board'])
+            session['board'] = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
+            session['gameStates'].append(session['board'])
 
-                checkmate_status = checkCheckmateOrStalemate(session['board'], session['turn'], session['botWhite'], session['gameStates'])
-                if checkmate_status == 'checkmate':
-                    response['status'] = 'checkmate'
-                elif checkmate_status == 'stalemate':
-                    response['status'] = 'stalemate'
-                else:
-                    if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
-                        session['promote'] = True
-                        session['promotion_piece'] = piece
-                        session['promotion_dest'] = dest
-                        response['status'] = 'promote'
-                    else:
-                        session['turn'] = 'bot'
-                        response['status'] = 'success'
+            if piece.lower().startswith('p') and (dest // 8 == 0 or dest // 8 == 7):
+                session['promote'] = True
+                session['promotion_piece'] = piece
+                session['promotion_dest'] = dest
+                response['status'] = 'promote'
             else:
-                response['status'] = 'invalid - king in check'
+                session['turn'] = 'bot'
+                response['status'] = 'success'
         else:
             response['status'] = 'invalid'
 
@@ -83,28 +73,18 @@ def bot_move():
     logging.debug("Bot Move called")
     response = {}
     if session['turn'] == 'bot':
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], 2, 0.3)
+        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)
-
-            checkmate_status = checkCheckmateOrStalemate(session['board'], 'player', session['botWhite'], session['gameStates'])
-            if checkmate_status == 'checkmate':
-                response['status'] = 'checkmate'
-            elif checkmate_status == 'stalemate':
-                response['status'] = 'stalemate'
-            else:
-                session['turn'] = 'player'
-                response['status'] = 'success'
+            session['turn'] = 'player'
+            response['status'] = 'success'
         else:
-            response['status'] = 'checkmate'  # No valid moves left, indicating checkmate
-    else:
-        response['status'] = 'error'
+            response['status'] = 'error'
 
     response['board'] = session['board']
     response['turn'] = session['turn']
     return jsonify(response)
 
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)
