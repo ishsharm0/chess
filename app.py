@@ -1,8 +1,9 @@
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
 from bot import botMove
-import logging, random, dotenv
+import logging, random, dotenv, json
 
+config = json.load(open("config.json"))
 dotenv.load_dotenv()
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
@@ -87,4 +88,4 @@ def bot_move():
     return jsonify(response)
 
 if __name__ == '__main__':
-    app.run(debug=False)
+    app.run(debug=config["debugMode"])
