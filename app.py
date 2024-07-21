@@ -1,7 +1,11 @@
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
 from bot import botMove
-import logging, random, dotenv, json
+import logging
+import random
+import os
+import dotenv
+import json
 
 config = json.load(open("config.json"))
 dotenv.load_dotenv()

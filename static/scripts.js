@@ -67,11 +67,23 @@ function updateBoard(board, turn) {
         cells[i].innerText = board[i] ? board[i] : ' ';
     }
     $(".turn-display span").text(turn);
+    $("body").attr("data-turn", turn);
 }
 
 function showPromotionForm() {
     // Show the promotion form
     $(".promotion-form").show();
+}
+
+function selectCell(row, col) {
+    if (selectedCell) {
+        const moveInput = `${selectedCell.row}${selectedCell.col} ${row}${col}`;
+        $("input[name='move']").val(moveInput);
+        makeMove();
+        selectedCell = null;
+    } else {
+        selectedCell = { row, col };
+    }
 }
 
 $(document).ready(function() {
@@ -82,6 +94,10 @@ $(document).ready(function() {
     });
 
     $(".chess-board td").on("click", function() {
+        if ($("body").attr("data-turn") !== "player") {
+            return; // Do nothing if it's not the player's turn
+        }
+        
         let cellId = $(this).attr('id');
         let cellIndex = parseInt(cellId.split('-')[1]);
         let piece = $(this).text().trim();
