@@ -66,7 +66,10 @@ function updateBoard(board, turn) {
     for (var i = 0; i < cells.length; i++) {
         cells[i].innerText = board[i] ? board[i] : ' ';
     }
-    $(".turn-display span").text(turn);  // Update the turn display
+
+    
+
+    $(".turn-display span").text("🤖 Bot") ? turn === 'bot' : $(".turn-display span").text("👤 You");  // Update the turn display
 }
 
 function showPromotionForm() {
