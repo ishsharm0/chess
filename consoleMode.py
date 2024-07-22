@@ -51,9 +51,9 @@ def startGame(botWhite):
             # Player input and validity checking
             if turn == "bot":
                 move = botMove(board, turn, gameStates, botWhite)
-                if isKingSafe(move, turn):
-                        board = move
-                        break
+                if move is not None and isKingSafe(move, turn):
+                    board = move
+                    break
                 else:
                     print("Invalid move. This move does not resolve the check.")
             else:   
