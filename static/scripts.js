@@ -23,7 +23,7 @@ function makeMove() {
             } else if (response.status === 'promote') {
                 showPromotionForm();
             } else if (response.status === 'checkmate') {
-                alert("Checkmate! Game over.");
+                alert(`Checkmate! Winner: ${response.winner}`);
                 resetGame();
             } else if (response.status === 'stalemate') {
                 alert("Stalemate! Game over.");
@@ -46,7 +46,7 @@ function botMove() {
             updateBoard(response.board, response.turn);
             console.log(`Bot move result: ${response.status}`);
             if (response.status === 'checkmate') {
-                alert("Checkmate! Game over.");
+                alert(`Checkmate! Winner: ${response.winner}`);
                 resetGame();
             } else if (response.status === 'stalemate') {
                 alert("Stalemate! Game over.");
@@ -144,7 +144,7 @@ $(document).ready(function() {
                         } else if (response.status === 'promote') {
                             showPromotionForm();
                         } else if (response.status === 'checkmate') {
-                            alert("Checkmate! Game over.");
+                            alert(`Checkmate! Winner: ${response.winner}`);
                             resetGame();
                         } else if (response.status === 'stalemate') {
                             alert("Stalemate! Game over.");

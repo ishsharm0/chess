@@ -63,8 +63,15 @@ def make_move():
                 session['promotion_dest'] = dest
                 response['status'] = 'promote'
             else:
-                session['turn'] = 'bot'
-                response['status'] = 'success'
+                status = checkCheckmateOrStalemate(session['board'], 'player', session['botWhite'], session['gameStates'])
+                if status == 'checkmate':
+                    response['status'] = 'checkmate'
+                    response['winner'] = 'player' if session['turn'] == 'player' else 'bot'
+                elif status == 'stalemate':
+                    response['status'] = 'stalemate'
+                else:
+                    session['turn'] = 'bot'
+                    response['status'] = 'success'
         else:
             response['status'] = 'invalid'
 
@@ -89,8 +96,15 @@ def bot_move():
                 print("King is safe")
                 session['board'] = new_board
                 session['gameStates'].append(new_board)
-                session['turn'] = 'player'
-                response['status'] = 'success'
+                status = checkCheckmateOrStalemate(session['board'], 'bot', session['botWhite'], session['gameStates'])
+                if status == 'checkmate':
+                    response['status'] = 'checkmate'
+                    response['winner'] = 'bot'
+                elif status == 'stalemate':
+                    response['status'] = 'stalemate'
+                else:
+                    session['turn'] = 'player'
+                    response['status'] = 'success'
         else:
             print("HELP")
             response['status'] = 'error'

@@ -100,7 +100,7 @@ def getCurrentBoard(gameStates):
     return gameStates[-1]  # Modify this line as necessary to fit your implementation
 
 
-def botMove(board, turn, gameStates, botWhite, depth=3, pruneRate=0.3):
+def botMove(board, turn, gameStates, botWhite, depth=1, pruneRate=0.3):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         return None
