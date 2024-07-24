@@ -84,11 +84,15 @@ def bot_move():
             new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
         
         if new_board:
-            session['board'] = new_board
-            session['gameStates'].append(new_board)
-            session['turn'] = 'player'
-            response['status'] = 'success'
+            print("Board exists")
+            if isKingSafe(new_board, session['turn']):
+                print("King is safe")
+                session['board'] = new_board
+                session['gameStates'].append(new_board)
+                session['turn'] = 'player'
+                response['status'] = 'success'
         else:
+            print("HELP")
             response['status'] = 'error'
 
     response['board'] = session['board']

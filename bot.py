@@ -153,8 +153,11 @@ def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
 
     # Prune branches: keep only top 'pruneRate' percent moves
     sorted_child_nodes = sorted(child_nodes, key=lambda x: x.score, reverse=turn == 'bot')
-    pruned_children = sorted_child_nodes[:int(len(sorted_child_nodes) * pruneRate)]
-
+    if (len(sorted_child_nodes) > 1):
+        pruned_children = sorted_child_nodes[:int(len(sorted_child_nodes) * pruneRate)]
+    else:
+        pruned_children = sorted_child_nodes
+        
     # Add only the pruned nodes to the tree
     for child in pruned_children:
         node.add_child(child)
