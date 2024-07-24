@@ -155,10 +155,28 @@ button:hover {
     font-size: 20px;
 }
 
+/* Default piece colors */
 img.black-piece {
-    filter: invert(16%) sepia(9%) saturate(1377%) hue-rotate(3deg) brightness(99%) contrast(84%) drop-shadow( 0px 4px 4px rgba(0,0,0,0.1));
+    filter: invert(16%) sepia(9%) saturate(1377%) hue-rotate(3deg) brightness(99%) contrast(84%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
 }
 
 img.white-piece {
-    filter: invert(94%) sepia(43%) saturate(193%) hue-rotate(310deg) brightness(102%) contrast(102%) drop-shadow( 0px 4px 4px rgba(0,0,0,0.1));
+    filter: invert(94%) sepia(43%) saturate(193%) hue-rotate(310deg) brightness(102%) contrast(102%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
+}
+
+/* Adjust piece colors based on botWhite */
+body[data-botwhite="true"] img.white-piece {
+    filter: invert(16%) sepia(9%) saturate(1377%) hue-rotate(3deg) brightness(99%) contrast(84%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
+}
+
+body[data-botwhite="true"] img.black-piece {
+    filter: invert(94%) sepia(43%) saturate(193%) hue-rotate(310deg) brightness(102%) contrast(102%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
+}
+
+body[data-botwhite="false"] img.white-piece {
+    filter: invert(94%) sepia(43%) saturate(193%) hue-rotate(310deg) brightness(102%) contrast(102%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
+}
+
+body[data-botwhite="false"] img.black-piece {
+    filter: invert(16%) sepia(9%) saturate(1377%) hue-rotate(3deg) brightness(99%) contrast(84%) drop-shadow(0px 4px 4px rgba(0,0,0,0.1));
 }

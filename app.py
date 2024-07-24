@@ -39,7 +39,7 @@ def index():
 @app.route('/active', methods=['GET'])
 def active():
     logging.debug("Active page called")
-    return render_template('index.html', board=session['board'], turn=session['turn'], promote=session['promote'])
+    return render_template('index.html', board=session['board'], turn=session['turn'], promote=session['promote'], botWhite=session['botWhite'])
 
 @app.route('/make_move', methods=['POST'])
 def make_move():
@@ -78,6 +78,7 @@ def make_move():
     response['board'] = session['board']
     response['turn'] = session['turn']
     response['promote'] = session['promote']
+    response['botWhite'] = session['botWhite']
     return jsonify(response)
 
 @app.route('/bot_move', methods=['POST'])
@@ -111,6 +112,7 @@ def bot_move():
 
     response['board'] = session['board']
     response['turn'] = session['turn']
+    response['botWhite'] = session['botWhite']
     return jsonify(response)
 
 if __name__ == '__main__':

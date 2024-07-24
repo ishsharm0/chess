@@ -6,7 +6,7 @@
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
     <script src="{{ url_for('static', filename='scripts.js') }}"></script>
 </head>
-<body data-turn="{{ turn }}">
+<body data-turn="{{ turn }}" data-botwhite="{{ 'true' if botWhite else 'false' }}">
     <div class="container">
         <div class="chess-container">
             <div class="board-container">
@@ -16,7 +16,7 @@
                         {% for j in range(8) %}
                         <td id="cell-{{ i*8 + j }}" class="{{ 'black' if (i+j) % 2 else 'white' }}">
                             {% if board[i*8 + j] %}
-                            <img src="/static/icons/{{ board[i*8 + j][0].lower() }}.svg" class="{{ 'white-piece' if board[i*8 + j][0].isupper() else 'black-piece' }}" alt="{{ board[i*8 + j] }}">
+                            <img src="/static/icons/{{ board[i*8 + j][0].lower() }}.svg" class="piece {{ 'black-piece' if board[i*8 + j][0].isupper() else 'white-piece' }}" alt="{{ board[i*8 + j] }}">
                             {% endif %}
                         </td>
                         {% endfor %}

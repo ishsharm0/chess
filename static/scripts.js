@@ -1,5 +1,6 @@
 let selectedPiece = null;
 let selectedCell = null;
+let botWhite = null;
 
 function resetGame() {
     window.location.href = "/";  // Redirect to the index route to reset the game
@@ -14,7 +15,8 @@ function makeMove() {
         contentType: "application/json",
         data: JSON.stringify({ move: moveInput }),
         success: function(response) {
-            updateBoard(response.board, response.turn);
+            botWhite = response.botWhite;
+            updateBoard(response.board, response.turn, botWhite);
             console.log(`Move result: ${response.status}`);
             if (response.status === 'success' || response.status === 'castle') {
                 if (response.turn === 'bot') {
@@ -43,7 +45,8 @@ function botMove() {
         url: "/bot_move",
         type: "POST",
         success: function(response) {
-            updateBoard(response.board, response.turn);
+            botWhite = response.botWhite;
+            updateBoard(response.board, response.turn, botWhite);
             console.log(`Bot move result: ${response.status}`);
             if (response.status === 'checkmate') {
                 alert(`Checkmate! Winner: ${response.winner}`);
@@ -59,7 +62,7 @@ function botMove() {
     });
 }
 
-function updateBoard(board, turn) {
+function updateBoard(board, turn, botWhite) {
     console.log(`Updating board. Turn: ${turn}`);
     // Update the board cells with the new board state
     var cells = document.querySelectorAll(".chess-board td");
@@ -67,7 +70,7 @@ function updateBoard(board, turn) {
         let piece = board[i];
         if (piece) {
             let pieceType = piece[0].toLowerCase(); // 'p', 'r', etc.
-            let colorClass = (piece[0] === piece[0].toUpperCase()) ? 'white-piece' : 'black-piece';
+            let colorClass = (piece[0] === piece[0].toUpperCase()) ? 'black-piece' : 'white-piece';
             cells[i].innerHTML = `<img src="/static/icons/${pieceType}.svg" class="${colorClass}" alt="${piece}" />`;
         } else {
             cells[i].innerHTML = '';
@@ -75,6 +78,7 @@ function updateBoard(board, turn) {
     }
     $(".turn-display span").text(turn);
     $("body").attr("data-turn", turn);
+    $("body").attr("data-botwhite", botWhite ? "true" : "false");
 }
 
 function showPromotionForm() {
@@ -142,7 +146,8 @@ $(document).ready(function() {
                     contentType: "application/json",
                     data: JSON.stringify({ move: moveInput }),
                     success: function(response) {
-                        updateBoard(response.board, response.turn);
+                        botWhite = response.botWhite;
+                        updateBoard(response.board, response.turn, botWhite);
                         console.log(`Move result: ${response.status}`);
                         if (response.status === 'success' || response.status === 'castle') {
                             if (response.turn === 'bot') {
