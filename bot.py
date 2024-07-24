@@ -1,7 +1,5 @@
-# bot.py
 from gameLogic import *
-import random
-import logging
+import random, logging, numpy
 
 def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
@@ -119,6 +117,20 @@ class Node:
 
     def __repr__(self):  # For easier debugging
         return f"Node(score={self.score})"
+
+def checkMove(board, turn, gameStates, botWhite):
+    allMoves = getAllTeamMoves(turn, board, botWhite, gameStates)
+    valid_moves = [move for moves in allMoves for move in moves if isKingSafe(move, turn)]
+
+    if not valid_moves:
+        return None  # No valid moves, likely checkmate
+
+    scores = [scoreMove(move, botWhite, gameStates) for move in valid_moves]
+    highest_score_index = numpy.argmax(scores)
+    return valid_moves[highest_score_index]
+
+
+
 
 def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
     if depth == 0 or detectCheckmate(node.board, turn, botWhite, gameStates):

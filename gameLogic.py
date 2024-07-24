@@ -77,7 +77,7 @@ def isKingSafe(board, turn, position=None):
     for direction in directions:
         step = direction
         pos = kingPosition + step
-        while isOnBoard(pos) and not crossesBorder(kingPosition, pos):
+        while isOnBoard(pos):
             if board[pos]:
                 if board[pos][0].lower() in ['r', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
                     return False
@@ -88,7 +88,7 @@ def isKingSafe(board, turn, position=None):
     for direction in diagonals:
         step = direction
         pos = kingPosition + step
-        while isOnBoard(pos) and not crossesBorder(kingPosition, pos):
+        while isOnBoard(pos):
             if board[pos]:
                 if board[pos][0].lower() in ['b', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
                     return False
@@ -104,16 +104,29 @@ def isKingSafe(board, turn, position=None):
     # Check if the enemy king is directly next to this king
     for move in [-1, 1, -8, 8, -9, -7, 9, 7]:
         pos = kingPosition + move
-        if isOnBoard(pos) and not crossesBorder(kingPosition, pos) and isEnemyPiece(board, pos, 'k', enemy):
+        if isOnBoard(pos) and isEnemyPiece(board, pos, 'k', enemy):
             return False
 
     return True
 
+
 def crossesBorder(origin, destination):
+    origin_row = origin // 8
+    origin_col = origin % 8
+    dest_row = destination // 8
+    dest_col = destination % 8
+
+    # Check if the move is vertical or horizontal
+    if origin_col == dest_col or origin_row == dest_row:
+        return False
+
     # Special handling for knight crossing board logic
-    if abs(origin % 8 - destination % 8) > 2:
+    if abs(origin_col - dest_col) > 2:
         return True
-    return abs(origin // 8 - destination // 8) > 2 or (origin % 8 == 0 or destination % 8 == 7)
+
+    # Check if move crosses row or column boundaries
+    return abs(origin_row - dest_row) > 1 or abs(origin_col - dest_col) > 1
+
 
 def isOnBoard(position):
     return 0 <= position < 64
@@ -244,16 +257,18 @@ def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with
         return board
 
 def moveValidate(piece, dest, turn, board, botWhite, gameStates):
-
     validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
-    
+
     if not validTurn:
-        return False 
+        return False
 
     if isinstance(dest, str):
         destIndex = findSquare(dest)
     else:
         destIndex = dest  # Assuming dest is already an index if not a string
+
+    if destIndex < 0 or destIndex >= len(board):
+        return False  # Invalid destination index
 
     currIndex = findPiece(piece, board)
     if currIndex == -1 or destIndex is False:
@@ -412,6 +427,7 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
             return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
+
 
 def findSquare(square):
     try:

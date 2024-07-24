@@ -1,6 +1,6 @@
 from flask import Flask, request, redirect, url_for, session, render_template, flash, jsonify
 from gameLogic import *
-from bot import botMove
+from bot import botMove, checkMove
 import logging
 import random
 import os
@@ -78,7 +78,11 @@ def bot_move():
     logging.debug("Bot Move called")
     response = {}
     if session['turn'] == 'bot':
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
+        if not isKingSafe(session['board'], session['turn']):
+            new_board = checkMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
+        else:
+            new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
+        
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)
