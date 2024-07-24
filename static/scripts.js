@@ -64,7 +64,14 @@ function updateBoard(board, turn) {
     // Update the board cells with the new board state
     var cells = document.querySelectorAll(".chess-board td");
     for (var i = 0; i < cells.length; i++) {
-        cells[i].innerText = board[i] ? board[i] : ' ';
+        let piece = board[i];
+        if (piece) {
+            let pieceType = piece[0].toLowerCase(); // 'p', 'r', etc.
+            let colorClass = (piece[0] === piece[0].toUpperCase()) ? 'white-piece' : 'black-piece';
+            cells[i].innerHTML = `<img src="/static/icons/${pieceType}.svg" class="${colorClass}" alt="${piece}" />`;
+        } else {
+            cells[i].innerHTML = '';
+        }
     }
     $(".turn-display span").text(turn);
     $("body").attr("data-turn", turn);
@@ -100,7 +107,7 @@ $(document).ready(function() {
         
         let cellId = $(this).attr('id');
         let cellIndex = parseInt(cellId.split('-')[1]);
-        let piece = $(this).text().trim();
+        let piece = $(this).find('img').attr('alt');
 
         console.log(`Clicked cell: ${cellId}, piece: ${piece}, cellIndex: ${cellIndex}`);
 

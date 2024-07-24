@@ -155,3 +155,11 @@ button:hover {
     color: #8C52FF;
     font-size: 20px;
 }
+
+img.black-piece {
+    filter: invert(19%) sepia(77%) saturate(2456%) hue-rotate(186deg) brightness(85%) contrast(114%);
+}
+
+img.white-piece {
+    filter: invert(100%) sepia(0%) saturate(0%) hue-rotate(93deg) brightness(101%) contrast(103%);
+}

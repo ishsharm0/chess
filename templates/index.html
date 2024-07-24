@@ -15,7 +15,9 @@
                     <tr>
                         {% for j in range(8) %}
                         <td id="cell-{{ i*8 + j }}" class="{{ 'black' if (i+j) % 2 else 'white' }}">
-                            {{ board[i*8 + j] if board[i*8 + j] else ' ' }}
+                            {% if board[i*8 + j] %}
+                            <img src="/static/icons/{{ board[i*8 + j][0].lower() }}.svg" class="{{ 'white-piece' if board[i*8 + j][0].isupper() else 'black-piece' }}" alt="{{ board[i*8 + j] }}">
+                            {% endif %}
                         </td>
                         {% endfor %}
                     </tr>
