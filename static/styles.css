@@ -1,6 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap');
-@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;700&display=swap');
-
 body {
     font-family: 'Roboto', sans-serif;
     background: linear-gradient(135deg, #f4f4f9 0%, #dcdcdc 100%);
@@ -116,17 +113,21 @@ button:hover {
     margin: 20px auto;
     border-collapse: collapse;
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    table-layout: fixed; /* Keep table dimensions fixed */
+    width: 480px; /* Set fixed width */
+    height: 480px; /* Set fixed height to make it square */
 }
 
 .chess-board td {
-    width: 60px;
-    height: 60px;
+    width: 60px; /* Adjust cell width */
+    height: 60px; /* Adjust cell height */
     text-align: center;
     vertical-align: middle;
     font-size: 24px;
     font-weight: bold;
     font-family: 'Montserrat', sans-serif;
     transition: background-color 0.3s;
+    box-sizing: border-box; /* Ensure padding and border are included in the width and height */
 }
 
 .chess-board .black {

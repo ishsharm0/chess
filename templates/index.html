@@ -42,15 +42,14 @@
                         <button type="submit">Promote</button>
                     </form>
                     {% else %}
-                    <form id="move-form">
-                        <input type="text" name="move" placeholder="e.g., p3 c6">
-                        <button type="submit">Make Move</button>
+                    <div id="move-controls">
+                        <button type="button" onclick="castleMove();">Castle</button>
                         <button type="button" onclick="resetGame();">Reset Game</button>
-                    </form>
+                    </div>
                     {% endif %}
                 </div>
                 <div class="instructions">
-                    <p>To castle, type <strong>CASTLE</strong>.</p>
+                    <p>Point and click! Use the Castle button to castle.</p>
                     <p class="turn-display">Current turn: <span>{{ turn }}</span></p>
                 </div>
             </div>

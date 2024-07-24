@@ -1,13 +1,11 @@
 let selectedPiece = null;
 let selectedCell = null;
-let botWhite = null;
 
 function resetGame() {
     window.location.href = "/";  // Redirect to the index route to reset the game
 }
 
-function makeMove() {
-    var moveInput = $("input[name='move']").val();
+function makeMove(moveInput) {
     console.log(`Making move with input: ${moveInput}`);
     $.ajax({
         url: "/make_move",
@@ -15,8 +13,7 @@ function makeMove() {
         contentType: "application/json",
         data: JSON.stringify({ move: moveInput }),
         success: function(response) {
-            botWhite = response.botWhite;
-            updateBoard(response.board, response.turn, botWhite);
+            updateBoard(response.board, response.turn);
             console.log(`Move result: ${response.status}`);
             if (response.status === 'success' || response.status === 'castle') {
                 if (response.turn === 'bot') {
@@ -45,8 +42,7 @@ function botMove() {
         url: "/bot_move",
         type: "POST",
         success: function(response) {
-            botWhite = response.botWhite;
-            updateBoard(response.board, response.turn, botWhite);
+            updateBoard(response.board, response.turn);
             console.log(`Bot move result: ${response.status}`);
             if (response.status === 'checkmate') {
                 alert(`Checkmate! Winner: ${response.winner}`);
@@ -62,7 +58,7 @@ function botMove() {
     });
 }
 
-function updateBoard(board, turn, botWhite) {
+function updateBoard(board, turn) {
     console.log(`Updating board. Turn: ${turn}`);
     // Update the board cells with the new board state
     var cells = document.querySelectorAll(".chess-board td");
@@ -78,7 +74,6 @@ function updateBoard(board, turn, botWhite) {
     }
     $(".turn-display span").text(turn);
     $("body").attr("data-turn", turn);
-    $("body").attr("data-botwhite", botWhite ? "true" : "false");
 }
 
 function showPromotionForm() {
@@ -89,20 +84,19 @@ function showPromotionForm() {
 function selectCell(row, col) {
     if (selectedCell) {
         const moveInput = `${selectedCell.row}${selectedCell.col} ${row}${col}`;
-        $("input[name='move']").val(moveInput);
-        makeMove();
+        makeMove(moveInput);
         selectedCell = null;
     } else {
         selectedCell = { row, col };
     }
 }
 
+function castleMove() {
+    makeMove("castle");
+}
+
 $(document).ready(function() {
     $(".promotion-form").hide(); // Hide the promotion form initially
-    $("#move-form").on("submit", function(event) {
-        event.preventDefault();
-        makeMove();
-    });
 
     $(".chess-board td").on("click", function() {
         if ($("body").attr("data-turn") !== "player") {
@@ -140,41 +134,7 @@ $(document).ready(function() {
                 // Make a move
                 let moveInput = selectedPiece + ' ' + cellIndex;
                 console.log(`Move input: ${moveInput}`);
-                $.ajax({
-                    url: "/make_move",
-                    type: "POST",
-                    contentType: "application/json",
-                    data: JSON.stringify({ move: moveInput }),
-                    success: function(response) {
-                        botWhite = response.botWhite;
-                        updateBoard(response.board, response.turn, botWhite);
-                        console.log(`Move result: ${response.status}`);
-                        if (response.status === 'success' || response.status === 'castle') {
-                            if (response.turn === 'bot') {
-                                botMove();
-                            }
-                        } else if (response.status === 'promote') {
-                            showPromotionForm();
-                        } else if (response.status === 'checkmate') {
-                            alert(`Checkmate! Winner: ${response.winner}`);
-                            resetGame();
-                        } else if (response.status === 'stalemate') {
-                            alert("Stalemate! Game over.");
-                            resetGame();
-                        } else {
-                            alert(response.status);
-                        }
-                        selectedPiece = null;
-                        selectedCell = null;
-                        $(".chess-board td").removeClass('selected');
-                    },
-                    error: function() {
-                        alert("Error making move.");
-                        selectedPiece = null;
-                        selectedCell = null;
-                        $(".chess-board td").removeClass('selected');
-                    }
-                });
+                makeMove(moveInput);
             }
         }
     });

@@ -1,9 +1,10 @@
 # gameLogic.py
 from colorama import Style, init, Fore
-import os
+import os, logging
 
 clearLogs = True
 init(autoreset=True)
+logging.basicConfig(level=logging.DEBUG)
 
 def newBoard(botWhite): # True -> Bot is white
     if botWhite: 
@@ -31,15 +32,14 @@ def newBoard(botWhite): # True -> Bot is white
     return board
 
 def detectCheckmate(board, turn, botWhite, gameStates):
-    # Invert turn to check if the opponent is in checkmate
+    logging.debug(f"Detecting checkmate for turn: {turn}")
     enemy_turn = 'bot' if turn == 'player' else 'player'
-    allMoves = getAllTeamMoves(enemy_turn, board, turn == 'bot', gameStates)
+    allMoves = getAllTeamMoves(enemy_turn, board, enemy_turn == 'bot', gameStates)
 
-    # Check if any move leads to a position where the enemy king is not in check
     for moves in allMoves:
         for move in moves:
             if isKingSafe(move, enemy_turn):
-                return False  # Not checkmate if at least one move leads out of check
+                return False
     return True
 
 def detectStalemate(board, turn, botWhite, gameStates):
@@ -108,6 +108,7 @@ def isKingSafe(board, turn, position=None):
             return False
 
     return True
+
 
 
 def crossesBorder(origin, destination):
@@ -280,7 +281,7 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
     # Check if the destination square is not blocked by a friendly piece
     if board[destIndex] is not None and ((turn == 'bot' and board[destIndex][0].isupper()) or (turn == 'player' and board[destIndex][0].islower())):
         return False
-
+    
     #Move validity checking
     match piece[0].lower():
         case "r":
@@ -297,6 +298,9 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
                 for i in range(1, abs(colDiff)):
                     if board[currIndex + i * step] is not None:
                         return False  # There is a piece in the way 
+            if crossesBorder(currIndex, destIndex):
+                return False
+
             
         case "n":
             if abs(colDiff) == 2: 
@@ -331,11 +335,17 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
                 for i in range(1, abs(rowDiff)):
                     if board[currIndex + i * 8 * step] is not None:
                         return False  # There is a piece in the way
+                if crossesBorder(currIndex, destIndex):
+                    return False
+
             elif rowDiff == 0:  # Horizontal movement
                 step = 1 if colDiff > 0 else -1
                 for i in range(1, abs(colDiff)):
                     if board[currIndex + i * step] is not None:
                         return False  # There is a piece in the way 
+                if crossesBorder(currIndex, destIndex):
+                    return False
+
 
             elif abs(colDiff) == abs(rowDiff):  # Diagonal movement
                 step = 9 if colDiff > 0 and rowDiff > 0 else -9  
@@ -423,10 +433,13 @@ def moveValidate(piece, dest, turn, board, botWhite, gameStates):
                                     return True
             return False
 
+
     if turn == 'bot':
             return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
     elif turn == 'player':
         return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
+    
+    
 
 
 def findSquare(square):
