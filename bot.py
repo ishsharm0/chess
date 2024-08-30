@@ -5,7 +5,7 @@ def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
     values = {
         'K': 5, 'Q': 4, 'R': 3.5, 'B': 3, 'N': 2.5, 'P': 1,
-        'k': 0, 'q': -6, 'r': -5, 'b': -4, 'n': -3, 'p': -2
+        'k': 0, 'q': -7, 'r': -6, 'b': -5, 'n': -4, 'p': -2
     }
 
     score = 0
@@ -19,15 +19,15 @@ def scoreMove(board, botWhite, gameStates):
 
     # Is enemy checkmate
     if detectCheckmate(board, 'player', botWhite, gameStates):
-        score += 15  
+        score += 20  
     # Is bot checkmate
     if detectCheckmate(board, 'bot', botWhite, gameStates): 
-        score -= 15
+        score -= 20
 
     if not (isKingSafe(board, 'player')): 
-        score += 4
+        score += 2
     elif not isKingSafe(board, 'bot'):
-        score -= 10
+        score -= 15
 
     return score
     
@@ -100,7 +100,7 @@ def getCurrentBoard(gameStates):
     return gameStates[-1]  # Modify this line as necessary to fit your implementation
 
 
-def botMove(board, turn, gameStates, botWhite, depth=1, pruneRate=0.3):
+def botMove(board, turn, gameStates, botWhite, depth=2, pruneRate=0.3):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         return None
