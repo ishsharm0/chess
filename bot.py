@@ -5,7 +5,7 @@ def scoreMove(board, botWhite, gameStates):
     # Define values for each piece type
     values = {
         'K': 5, 'Q': 4, 'R': 3.5, 'B': 3, 'N': 2.5, 'P': 1,
-        'k': 0, 'q': -10, 'r': -7, 'b': -5, 'n': -4, 'p': -2
+        'k': 0, 'q': -6, 'r': -5, 'b': -4, 'n': -3, 'p': -2
     }
 
     score = 0
@@ -53,7 +53,7 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
 
     # Highly reward player's moves leading to bot's checkmate
     if detectCheckmate(board, 'bot', botWhite, gameStates):
-        score += 30
+        score += 20
 
     # Penalize enemy's king being unsafe less significantly than bot's king safety
     if not isKingSafe(board, 'player'):
@@ -61,7 +61,7 @@ def scoreMoveForEnemy(board, botWhite, gameStates):
 
     # Significantly reward player's moves leading to player's checkmate
     if detectCheckmate(board, 'player', botWhite, gameStates):
-        score -= 30
+        score -= 20
 
     return score
 
