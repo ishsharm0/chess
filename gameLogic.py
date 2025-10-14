@@ -1,609 +1,392 @@
 # gameLogic.py
-from colorama import Style, init, Fore
-import os, logging
+# Core rules: line pieces, knights, pawns (double, capture, en passant), castling, checks.
+import logging
+from typing import Tuple, Optional
 
-clearLogs = True
-init(autoreset=True)
 logging.basicConfig(level=logging.DEBUG)
 
-def newBoard(botWhite): # True -> Bot is white
-    if botWhite: 
-        board = (
-            'r1', 'n1', 'b1', 'q', 'k', 'b2', 'n2', 'r2',  # player
-            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
-            'R1', 'N1', 'B1', 'Q', 'K', 'B2', 'N2', 'R2'   # bot
+def newBoard(botWhite: bool):
+    if botWhite:
+        return (
+            'r1','n1','b1','q','k','b2','n2','r2',
+            'p1','p2','p3','p4','p5','p6','p7','p8',
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            'P1','P2','P3','P4','P5','P6','P7','P8',
+            'R1','N1','B1','Q','K','B2','N2','R2',
         )
-    else: 
-        board = (
-            'r1', 'n1', 'b1', 'k', 'q', 'b2', 'n2', 'r2',  # player
-            'p1', 'p2', 'p3', 'p4', 'p5', 'p6', 'p7', 'p8',  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            None, None, None, None, None, None, None, None,  
-            'P1', 'P2', 'P3', 'P4', 'P5', 'P6', 'P7', 'P8', 
-            'R1', 'N1', 'B1', 'K', 'Q', 'B2', 'N2', 'R2'   # bot
-        )
-    return board
-
-def detectCheckmate(board, turn, botWhite, gameStates):
-    logging.debug(f"Detecting checkmate for turn: {turn}")
-    enemy_turn = 'bot' if turn == 'player' else 'player'
-    allMoves = getAllTeamMoves(enemy_turn, board, enemy_turn == 'bot', gameStates)
-
-    for moves in allMoves:
-        for move in moves:
-            if isKingSafe(move, enemy_turn):
-                return False
-    return True
-
-def detectStalemate(board, turn, botWhite, gameStates):
-    if len(getAllTeamMoves(turn, board, botWhite, gameStates)) == 0: 
-        return True
-    else: return False
-
-def isKingSafe(board, turn, position=None):
-    casePiece = 'K' if turn == 'bot' else 'k'
-    if position is None:
-        kingPosition = findPiece(casePiece, board)
     else:
-        kingPosition = position
+        return (
+            'r1','n1','b1','k','q','b2','n2','r2',
+            'p1','p2','p3','p4','p5','p6','p7','p8',
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            None,None,None,None,None,None,None,None,
+            'P1','P2','P3','P4','P5','P6','P7','P8',
+            'R1','N1','B1','K','Q','B2','N2','R2',
+        )
 
-    if kingPosition == -1:
-        return False
+def isOnBoard(i: int) -> bool:
+    return 0 <= i < 64
 
-    enemy = 'player' if turn == 'bot' else 'bot'
-    
-    # Directions for knight moves
-    knightMoves = [15, 17, -15, -17, 10, 6, -10, -6]
-    # Directions for rook/queen (horizontal and vertical)
-    directions = [1, -1, 8, -8]
-    # Directions for bishop/queen (diagonals)
-    diagonals = [9, -9, 7, -7]
-
-    # Check pawn attacks
-    pawnAttacks = [-9, -7] if turn == 'bot' else [9, 7]
-    for attack in pawnAttacks:
-        pos = kingPosition + attack
-        if isOnBoard(pos) and isEnemyPiece(board, pos, 'p', enemy):
-            return False
-
-    # Check horizontal and vertical threats (from rooks and queens)
-    for direction in directions:
-        step = direction
-        pos = kingPosition + step
-        while isOnBoard(pos):
-            if board[pos]:
-                if board[pos][0].lower() in ['r', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
-                    return False
-                break  # A piece blocks further checking in this direction
-            pos += step
-
-    # Check diagonal threats (from bishops and queens)
-    for direction in diagonals:
-        step = direction
-        pos = kingPosition + step
-        while isOnBoard(pos):
-            if board[pos]:
-                if board[pos][0].lower() in ['b', 'q'] and isEnemyPiece(board, pos, board[pos][0], enemy):
-                    return False
-                break  # A piece blocks further checking in this direction
-            pos += step
-
-    # Check knight attacks
-    for move in knightMoves:
-        pos = kingPosition + move
-        if isOnBoard(pos) and isEnemyPiece(board, pos, 'n', enemy):
-            return False
-
-    # Check if the enemy king is directly next to this king
-    for move in [-1, 1, -8, 8, -9, -7, 9, 7]:
-        pos = kingPosition + move
-        if isOnBoard(pos) and isEnemyPiece(board, pos, 'k', enemy):
-            return False
-
-    return True
-
-
-
-def crossesBorder(origin, destination):
-    origin_row = origin // 8
-    origin_col = origin % 8
-    dest_row = destination // 8
-    dest_col = destination % 8
-
-    # Check if the move is vertical or horizontal
-    if origin_col == dest_col or origin_row == dest_row:
-        return False
-
-    # Special handling for knight crossing board logic
-    if abs(origin_col - dest_col) > 2:
-        return True
-
-    # Check if move crosses row or column boundaries
-    return abs(origin_row - dest_row) > 1 or abs(origin_col - dest_col) > 1
-
-
-def isOnBoard(position):
-    return 0 <= position < 64
-
-def isEnemyPiece(board, position, pieceType, enemy):
-    piece = board[position]
-    if piece and piece[0].lower() == pieceType:
-        return (piece.islower() if enemy == 'player' else piece.isupper())
-    return False
-
-def getPieceMoves(piece, originalBoard, botWhite, gameStates): # Returns an array of all possible game tuples for a piece 
-    # Checks if piece is there
-    possibleMoves = []
-    if piece is not None: 
-        pass
-    else: 
-        return possibleMoves
-    currIndex = findPiece(piece, originalBoard)  
-    if currIndex == -1:
-        return possibleMoves  
-
-    turn = 'player' if piece[0].islower() else 'bot'  
-    
-    # Check every position on the board 
-    for destIndex in range(64):
-        if currIndex != destIndex:  
-        
-            # If valid move, move it to the new board
-            if moveValidate(piece, destIndex, turn, originalBoard, botWhite, gameStates):                
-                testBoard = list(originalBoard)
-                testBoard[destIndex] = piece 
-                testBoard[currIndex] = None  
-                possibleMoves.append(tuple(testBoard))  
-
-    return tuple(possibleMoves)
-
-def getAllTeamMoves(team, board, botWhite, gameStates): #Returns an array of arrays for a given team
-    teamMoves = []
-    if team == 'player': 
-        for piece in board: 
-            if piece is not None and piece[0].islower(): 
-                teamMoves.append(getPieceMoves(piece, board, botWhite, gameStates))
-    if team == 'bot': 
-        for piece in board: 
-            if piece is not None and piece[0].isupper(): 
-                teamMoves.append(getPieceMoves(piece, board, botWhite, gameStates))
-    return tuple(teamMoves)
-
-def findPiece(piece, board):
+def findPiece(piece: str, board: Tuple[Optional[str], ...]) -> int:
     try:
         return board.index(piece)
     except ValueError:
-        return -1  # Return -1 or another indicator that the piece is not found
+        return -1
 
+def same_side(a: str, b: str) -> bool:
+    return (a.isupper() and b.isupper()) or (a.islower() and b.islower())
 
-def promotePawn(piece, dest, new_piece, board, turn):
-    if turn == "bot": 
-        name = 'q'
-    else: 
-        # Determine the new piece abbreviation
-        if new_piece == "QUEEN":
-            name = "q"
-        elif new_piece == "KNIGHT":
-            name = "n"
-        elif new_piece == "BISHOP":
-            name = "b"
-        elif new_piece == "ROOK":
-            name = "r"
+_KNIGHT_OFFS = (15, 17, -15, -17, 10, 6, -10, -6)
+_LINE_DIRS = (1, -1, 8, -8)
+_DIAG_DIRS = (9, -9, 7, -7)
 
+def _same_row(a: int, b: int) -> bool:
+    return (a // 8) == (b // 8)
 
-    board = list(board)
+def _valid_step(prev: int, curr: int, step: int) -> bool:
+    """Ensure moving from prev->curr by 'step' stays on the intended line without wrapping."""
+    if not isOnBoard(prev) or not isOnBoard(curr):
+        return False
+    dr = (curr // 8) - (prev // 8)
+    dc = (curr % 8) - (prev % 8)
+    if step == 1:   # right
+        return dr == 0 and dc == 1
+    if step == -1:  # left
+        return dr == 0 and dc == -1
+    if step == 8:   # down a row
+        return dr == 1 and dc == 0
+    if step == -8:  # up a row
+        return dr == -1 and dc == 0
+    if step == 9:   # down-right
+        return dr == 1 and dc == 1
+    if step == -9:  # up-left
+        return dr == -1 and dc == -1
+    if step == 7:   # down-left
+        return dr == 1 and dc == -1
+    if step == -7:  # up-right
+        return dr == -1 and dc == 1
+    return False
 
-    # Detects and names new pieces
-    count = 1
-    for existing_piece in board:
-        if existing_piece and existing_piece[0].lower() == name:
-            existing_count = int(existing_piece[1:]) if len(existing_piece) > 1 and existing_piece[1:].isdigit() else 1
-            count = max(count, existing_count + 1)
+def _path_clear(board, start, dest, step) -> bool:
+    i = start + step
+    while i != dest:
+        if not isOnBoard(i) or not _valid_step(i - step, i, step):
+            return False
+        if board[i] is not None:
+            return False
+        i += step
+    # Final continuity check into dest
+    return _valid_step(dest - step, dest, step)
 
-    new_piece_name = name + str(count)
-    new_piece_name = new_piece_name.upper() if piece.isupper() else new_piece_name.lower()
+def isEnemyPiece(board, position, pieceType, enemy_turn) -> bool:
+    p = board[position]
+    if p and p[0].lower() == pieceType:
+        return (p.islower() if enemy_turn == 'player' else p.isupper())
+    return False
 
-    # Update board
-    board[dest] = new_piece_name
-    return tuple(board)
+def isKingSafe(board, turn: str, position: Optional[int] = None) -> bool:
+    casePiece = 'K' if turn == 'bot' else 'k'
+    king_pos = position if position is not None else findPiece(casePiece, board)
+    if king_pos == -1:
+        return False
+    enemy = 'player' if turn == 'bot' else 'bot'
+    # Pawn attacks
+    pawn_attacks = (-9, -7) if turn == 'bot' else (9, 7)
+    for off in pawn_attacks:
+        pos = king_pos + off
+        if isOnBoard(pos) and isEnemyPiece(board, pos, 'p', enemy):
+            return False
+    # Rook/Queen lines
+    for d in (1, -1, 8, -8):
+        i = king_pos + d
+        while isOnBoard(i) and _valid_step(i - d, i, d):
+            piece = board[i]
+            if piece:
+                if piece[0].lower() in ('r', 'q') and (piece.islower() if enemy == 'player' else piece.isupper()):
+                    return False
+                break
+            i += d
+    # Bishop/Queen diagonals
+    for d in (9, -9, 7, -7):
+        i = king_pos + d
+        while isOnBoard(i) and _valid_step(i - d, i, d):
+            piece = board[i]
+            if piece:
+                if piece[0].lower() in ('b', 'q') and (piece.islower() if enemy == 'player' else piece.isupper()):
+                    return False
+                break
+            i += d
+    # Knights
+    for off in _KNIGHT_OFFS:
+        i = king_pos + off
+        if isOnBoard(i) and isEnemyPiece(board, i, 'n', enemy):
+            # also ensure L-shape didn’t wrap horizontally (not necessary with offsets, but safe)
+            rdiff = abs((i // 8) - (king_pos // 8))
+            cdiff = abs((i % 8) - (king_pos % 8))
+            if (rdiff, cdiff) in {(1, 2), (2, 1)}:
+                return False
+    # Opposing king adjacency
+    for off in (-1, 1, -8, 8, -9, -7, 9, 7):
+        i = king_pos + off
+        if isOnBoard(i) and isEnemyPiece(board, i, 'k', enemy):
+            return False
+    return True
 
+def _last_move(gameStates):
+    if not gameStates or len(gameStates) < 2:
+        return None
+    prev = gameStates[-1]
+    prev2 = gameStates[-2]
+    diffs = [i for i in range(64) if prev[i] != prev2[i]]
+    if not diffs:
+        return None
+    from_idx = next((i for i in diffs if prev2[i] and prev[i] != prev2[i]), None)
+    to_idx = next((i for i in diffs if prev[i] and prev[i] != prev2[i]), None)
+    if from_idx is None or to_idx is None:
+        return None
+    return (prev[to_idx], from_idx, to_idx)
 
+def moveValidate(piece: str, dest: int, turn: str, board, botWhite, gameStates) -> bool:
+    if not ((piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')): return False
+    if not isOnBoard(dest): return False
+    src = findPiece(piece, board)
+    if src == -1: return False
+    if board[dest] is not None and same_side(piece, board[dest]): return False
+    rdiff = (dest // 8) - (src // 8)
+    cdiff = (dest % 8) - (src % 8)
+    t = piece[0].lower()
 
-def movePiece(piece, destIndex, board, gameStates, turn): # Returns a tuple with updated board
-    try:
-        currIndex = findPiece(piece, board)
-        if currIndex == -1:
-            return board
+    if t == 'r':
+        if rdiff != 0 and cdiff != 0: return False
+        step = 8 if rdiff > 0 else (-8 if rdiff < 0 else (1 if cdiff > 0 else -1))
+        if not _valid_step(src, src + step, step): return False
+        return _path_clear(board, src, dest, step)
 
-        board = list(board)
+    if t == 'b':
+        if abs(rdiff) != abs(cdiff): return False
+        step = 9 if (rdiff > 0 and cdiff > 0) else (-9 if (rdiff < 0 and cdiff < 0) else (7 if (rdiff > 0 and cdiff < 0) else -7))
+        if not _valid_step(src, src + step, step): return False
+        return _path_clear(board, src, dest, step)
 
-        board[destIndex] = piece
-        board[currIndex] = None
-        
-        colDiff = (destIndex % 8) - (currIndex % 8)  # Positive if dest is to the right
-        rowDiff = (destIndex // 8) - (currIndex // 8)  # Positive if dest is below
-        
-        if piece[0] == 'p': 
-            if currIndex // 8 == 6:
-                board = promotePawn(piece, board, turn)
-        elif piece[0] == 'P': 
-            if currIndex // 8 == 1:
-                board = promotePawn(piece, board, turn)
-        if piece[0].lower() == 'p': 
-            if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1):
-                    
-                    if gameStates[-2]: #Checking previous game state  
-                        lastBoard = gameStates[-2]
-
-                        lastMovedPiece = lastBoard[destIndex + 8] if turn == 'player' else lastBoard[destIndex - 8]
-                        if lastMovedPiece == board[currIndex + 1] or lastMovedPiece == board[currIndex - 1]:
-                            print("")
-                            if lastMovedPiece[0].lower() == 'p' and lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:
-                                
-                                # Communicate en passant to startGame
-                                return enPassant(destIndex, turn, board)
-                                
-        return tuple(board)
-    
-
-    except Exception as e:
-        print(f"Error moving piece: {e}")
-        return board
-
-def moveValidate(piece, dest, turn, board, botWhite, gameStates):
-    validTurn = (piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')
-
-    if not validTurn:
+    if t == 'q':
+        if rdiff == 0 or cdiff == 0:
+            step = 8 if rdiff > 0 else (-8 if rdiff < 0 else (1 if cdiff > 0 else -1))
+            if not _valid_step(src, src + step, step): return False
+            return _path_clear(board, src, dest, step)
+        if abs(rdiff) == abs(cdiff):
+            step = 9 if (rdiff > 0 and cdiff > 0) else (-9 if (rdiff < 0 and cdiff < 0) else (7 if (rdiff > 0 and cdiff < 0) else -7))
+            if not _valid_step(src, src + step, step): return False
+            return _path_clear(board, src, dest, step)
         return False
 
-    if isinstance(dest, str):
-        destIndex = findSquare(dest)
+    if t == 'n':
+        return (abs(rdiff), abs(cdiff)) in {(1,2),(2,1)}
+
+    if t == 'k':
+        return max(abs(rdiff), abs(cdiff)) == 1  # (castling handled via special "castle" action)
+
+    if t == 'p':
+        forward = 1 if turn == 'player' else -1
+        start_row = 1 if turn == 'player' else 6
+        # one step forward
+        if rdiff == forward and cdiff == 0 and board[dest] is None: return True
+        # two steps from start
+        if rdiff == 2*forward and cdiff == 0 and (src//8)==start_row and board[dest] is None and board[src+8*forward] is None: return True
+        # capture
+        if rdiff == forward and abs(cdiff) == 1 and board[dest] is not None and not same_side(piece, board[dest]): return True
+        # en passant capture
+        if rdiff == forward and abs(cdiff) == 1 and board[dest] is None:
+            last = _last_move(gameStates)
+            if last:
+                last_piece, from_idx, to_idx = last
+                if last_piece and last_piece[0].lower() == 'p' and abs(to_idx-from_idx) == 16:
+                    if (to_idx // 8) == (src // 8) and (to_idx % 8) == (dest % 8):
+                        return True
+        return False
+
+    return False
+
+def getPieceMoves(piece, originalBoard, botWhite, gameStates):
+    moves = []
+    if piece is None: return tuple()
+    src = findPiece(piece, originalBoard)
+    if src == -1: return tuple()
+    turn = 'player' if piece[0].islower() else 'bot'
+    for dest in range(64):
+        if dest == src: continue
+        if moveValidate(piece, dest, turn, originalBoard, botWhite, gameStates):
+            b = list(originalBoard)
+            # handle en passant capture removal
+            if piece[0].lower() == 'p' and b[dest] is None and (abs((dest%8)-(src%8)) == 1):
+                last = _last_move(gameStates)
+                if last:
+                    _, _, to_idx = last
+                    if (to_idx // 8) == (src // 8) and (to_idx % 8) == (dest % 8):
+                        b[to_idx] = None
+            b[dest] = piece
+            b[src] = None
+            moves.append(tuple(b))
+    return tuple(moves)
+
+def getAllTeamMoves(team, board, botWhite, gameStates):
+    teamMoves = []
+    if team == 'player':
+        for p in board:
+            if p and p[0].islower():
+                teamMoves.append(getPieceMoves(p, board, botWhite, gameStates))
     else:
-        destIndex = dest  # Assuming dest is already an index if not a string
+        for p in board:
+            if p and p[0].isupper():
+                teamMoves.append(getPieceMoves(p, board, botWhite, gameStates))
+    return tuple(teamMoves)
 
-    if destIndex < 0 or destIndex >= len(board):
-        return False  # Invalid destination index
+def promotePawn(piece: str, dest: int, new_piece: str, board, turn: str):
+    name_map = {"QUEEN": 'q', "ROOK": 'r', "BISHOP": 'b', "KNIGHT": 'n'}
+    base = name_map.get(new_piece.upper(), 'q')
+    b = list(board)
+    count = 1
+    for existing in b:
+        if existing and existing[0].lower() == base:
+            suffix = int(existing[1:]) if len(existing) > 1 and existing[1:].isdigit() else 1
+            count = max(count, suffix + 1)
+    new_name = base + str(count)
+    new_name = new_name.upper() if piece.isupper() else new_name.lower()
+    b[dest] = new_name
+    return tuple(b)
 
-    currIndex = findPiece(piece, board)
-    if currIndex == -1 or destIndex is False:
-        return False  # Early exit if no valid current or destination index
+def movePiece(piece, destIndex, board, gameStates, turn):
+    src = findPiece(piece, board)
+    if src == -1: return board
+    b = list(board)
+    # en passant removal if applicable
+    if piece[0].lower() == 'p' and b[destIndex] is None and abs((destIndex%8)-(src%8)) == 1:
+        last = _last_move(gameStates)
+        if last:
+            last_piece, _, to_idx = last
+            if last_piece and last_piece[0].lower() == 'p' and (to_idx // 8) == (src // 8) and (to_idx % 8) == (destIndex % 8):
+                b[to_idx] = None
+    b[destIndex] = piece
+    b[src] = None
+    return tuple(b)
 
-    colDiff = (destIndex % 8) - (currIndex % 8)
-    rowDiff = (destIndex // 8) - (currIndex // 8)
-
-    # Check if the destination square is not blocked by a friendly piece
-    if board[destIndex] is not None and ((turn == 'bot' and board[destIndex][0].isupper()) or (turn == 'player' and board[destIndex][0].islower())):
-        return False
-    
-    #Move validity checking
-    match piece[0].lower():
-        case "r":
-            if colDiff != 0 and rowDiff != 0:
-                return False  # Rooks move in straight lines, not diagonally
-
-            if colDiff == 0:  # Vertical movement
-                step = 1 if rowDiff > 0 else -1
-                for i in range(1, abs(rowDiff)):
-                    if board[currIndex + i * 8 * step] is not None:
-                        return False  # There is a piece in the way
-            elif rowDiff == 0:  # Horizontal movement
-                step = 1 if colDiff > 0 else -1
-                for i in range(1, abs(colDiff)):
-                    if board[currIndex + i * step] is not None:
-                        return False  # There is a piece in the way 
-            if crossesBorder(currIndex, destIndex):
-                return False
-
-            
-        case "n":
-            if abs(colDiff) == 2: 
-                if abs(rowDiff) == 1: 
-                    pass
-                else: return False
-            elif abs(colDiff) == 1: 
-                if abs(rowDiff) == 2: 
-                    pass
-                else: return False
-            else: 
-                return False
-            
-        case "b":
-            if abs(colDiff) == abs(rowDiff):  # Diagonal movement
-                step = 9 if colDiff > 0 and rowDiff > 0 else -9  
-                if colDiff < 0 and rowDiff > 0:
-                    step = 7  # Bottom left
-                elif colDiff > 0 and rowDiff < 0:
-                    step = -7  # Top right
-
-                nextIndex = currIndex + step
-                while nextIndex != destIndex:
-                    if board[nextIndex] is not None:  # Check if the path is clear
-                        return False
-                    nextIndex += step
-            else: return False
-
-        case "q":  # Queen
-            if colDiff == 0:  # Vertical movement
-                step = 1 if rowDiff > 0 else -1
-                for i in range(1, abs(rowDiff)):
-                    if board[currIndex + i * 8 * step] is not None:
-                        return False  # There is a piece in the way
-                if crossesBorder(currIndex, destIndex):
-                    return False
-
-            elif rowDiff == 0:  # Horizontal movement
-                step = 1 if colDiff > 0 else -1
-                for i in range(1, abs(colDiff)):
-                    if board[currIndex + i * step] is not None:
-                        return False  # There is a piece in the way 
-                if crossesBorder(currIndex, destIndex):
-                    return False
-
-
-            elif abs(colDiff) == abs(rowDiff):  # Diagonal movement
-                step = 9 if colDiff > 0 and rowDiff > 0 else -9  
-                if colDiff < 0 and rowDiff > 0:
-                    step = 7  # Bottom left
-                elif colDiff > 0 and rowDiff < 0:
-                    step = -7  # Top right
-
-                nextIndex = currIndex + step
-                while nextIndex != destIndex:
-                    if board[nextIndex] is not None:  # Check if the path is clear
-                        return False
-                    nextIndex += step
-
-            else: 
-                return False
-        
-        case "k":  # King movement validation
-            
-            # Is king safe on destIndex? Pass 
-            if isKingSafe(movePiece(piece, destIndex, board, gameStates, turn), turn):
-                pass
-            else:
-                return False
-
-            # Within king's range? 
-            if abs(rowDiff) <= 1 and abs(colDiff) <= 1:
-                if board[destIndex] is None: 
-                    return True
-                elif turn == 'bot' and board[destIndex][0].islower(): 
-                    return True
-                elif turn == 'player' and board[destIndex][0].isupper(): 
-                    return True
-                else: return False
-
-            # Castling
-            if botWhite:
-                if turn == 'bot' and 'K' in board and 'R2' in board:
-                    if findPiece('K', board) == 60 and findPiece('R2', board) == 63:
-                        if board[61] is None and board[62] is None:
-                            return True
-            else:
-                if turn == 'bot' and 'K' in board and 'R1' in board:  # Use 'R1' here if that's intended for non-botWhite side
-                    if findPiece('K', board) == 59 and findPiece('R1', board) == 56:
-                        if board[57] is None and board[58] is None:
-                            return True
-
-            return False
-
-        case "p":
-            if turn == "player":
-                # 1 square
-                if rowDiff == 1 and colDiff == 0 and board[destIndex] is None:
-                    return True
-                # 2 squares
-                elif rowDiff == 2 and colDiff == 0 and currIndex // 8 == 1 and board[destIndex] is None and board[currIndex + 8] is None:
-                    return True
-                # kill
-                elif rowDiff == 1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].isupper():
-                    return True     
-                 
-            elif turn == "bot":
-                if rowDiff == -1 and colDiff == 0 and board[destIndex] is None:
-                    return True
-                elif rowDiff == -2 and colDiff == 0 and currIndex // 8 == 6 and board[destIndex] is None and board[currIndex - 8] is None:
-                    return True  
-                elif rowDiff == -1 and (colDiff == 1 or colDiff == -1) and board[destIndex] is not None and board[destIndex][0].islower():
-                    return True
-
-            # En passant     
-            if (colDiff == 1 or colDiff == -1) and rowDiff == (1 if piece.islower() else -1) and board[destIndex] is None:
-                if len(gameStates) > 2:  # Need at least two game states to check the last move
-                    lastBoard = gameStates[-2]
-                    lastMovedIndex = destIndex + (8 if turn == 'player' else -8)
-
-                    # Check if the last moved index is on the board
-                    if 0 <= lastMovedIndex < 64:
-                        lastMovedPiece = lastBoard[lastMovedIndex]
-
-                        if lastMovedPiece is not None:
-                            if lastMovedPiece[0].lower() == 'p' and abs(findPiece(lastMovedPiece, lastBoard) - findPiece(lastMovedPiece, board)) == 16:
-                                # Ensure that the pawn moved two squares in the previous move
-                                if (lastMovedPiece.islower() and findPiece(lastMovedPiece, board) == lastMovedIndex - 16) or \
-                                (lastMovedPiece.isupper() and findPiece(lastMovedPiece, board) == lastMovedIndex + 16):
-                                    return True
-            return False
-
-
-    if turn == 'bot':
-            return True if board[destIndex] is None or (board[destIndex][0].islower()) else False
-    elif turn == 'player':
-        return True if board[destIndex] is None or (board[destIndex][0].isupper()) else False
-    
-    
-
-
-def findSquare(square):
+def findSquare(square: str):
     try:
-        colIndex = ord(square[0]) - ord('a')
+        colIndex = ord(square[0].lower()) - ord('a')
         rowIndex = int(square[1]) - 1
         index = (7 - rowIndex) * 8 + colIndex
-        print(f"findSquare({square}) = {index}")  # Debug output
         return index
-    except Exception as e:
-        print(f"Error in findSquare with input '{square}': {e}")
+    except Exception:
         return False
 
-def castle(turn, board, botWhite): 
-    board = list(board)
-    if botWhite: 
-        if turn == 'bot': 
-            board[60] = None
-            board[61] = 'R2'
-            board[62] = 'K'
-            board[63] = None
-        else: 
-            board[7] = None
-            board[6] = 'k'
-            board[5] = 'r2'
-            board[4] = None
-    else: 
-        if turn == 'bot': 
-            board[59] = None
-            board[58] = 'R1'
-            board[57] = 'K'
-            board[56] = None
-        else: 
-            board[3] = None
-            board[2] = 'r1'
-            board[1] = 'k'
-            board[0] = None
-    return tuple(board)
-
-def enPassant(destIndex, turn, board):
-    board = list(board)
-    if turn == 'bot':
-        opponentIndex = destIndex + 8 
-    else: 
-        opponentIndex = destIndex - 8
-    print(opponentIndex)
-    
-    board[opponentIndex] = None  # Remove the opponent's pawn
-    return tuple(board)
+def castle(turn, board, botWhite):
+    b = list(board)
+    if botWhite:
+        if turn == 'bot':
+            if b[60] == 'K' and b[63] == 'R2' and b[61] is None and b[62] is None:
+                b[60], b[62], b[63], b[61] = None, 'K', None, 'R2'
+        else:
+            if b[4] == 'k' and b[7] == 'r2' and b[5] is None and b[6] is None:
+                b[4], b[6], b[7], b[5] = None, 'k', None, 'r2'
+    else:
+        if turn == 'bot':
+            if b[59] == 'K' and b[56] == 'R1' and b[58] is None and b[57] is None:
+                b[59], b[57], b[56], b[58] = None, 'K', None, 'R1'
+        else:
+            if b[3] == 'k' and b[0] == 'r1' and b[2] is None and b[1] is None:
+                b[3], b[1], b[0], b[2] = None, 'k', None, 'r1'
+    return tuple(b)
 
 def castleValidate(botWhite, turn, board):
     if botWhite:
         if turn == 'bot':
-            kingPos = findPiece('K', board)
-            rookPos = findPiece('R2', board) if 'R2' in board else -1
-            critical_positions = [60, 61, 62] if kingPos == 60 and rookPos == 63 else []
+            kingPos, rookPos, path = 60, 63, [60, 61, 62]
+            if board[kingPos] != 'K' or board[rookPos] != 'R2' or board[61] or board[62]: return False
         else:
-            kingPos = findPiece('k', board)
-            rookPos = findPiece('r2', board) if 'r2' in board else -1
-            critical_positions = [4, 5, 6] if kingPos == 4 and rookPos == 7 else []
+            kingPos, rookPos, path = 4, 7, [4, 5, 6]
+            if board[kingPos] != 'k' or board[rookPos] != 'r2' or board[5] or board[6]: return False
     else:
         if turn == 'bot':
-            kingPos = findPiece('K', board)
-            rookPos = findPiece('R1', board) if 'R1' in board else -1
-            critical_positions = [59, 58, 57] if kingPos == 59 and rookPos == 56 else []
+            kingPos, rookPos, path = 59, 56, [59, 58, 57]
+            if board[kingPos] != 'K' or board[rookPos] != 'R1' or board[58] or board[57]: return False
         else:
-            kingPos = findPiece('k', board)
-            rookPos = findPiece('r1', board) if 'r1' in board else -1
-            critical_positions = [3, 2, 1] if kingPos == 3 and rookPos == 0 else []
-
-    if not critical_positions:  # If initial position check fails
-        return False
-
-    if not isKingSafe(board, turn):  # Check if king is currently in check
-        return False
-
-    # Check if any of the critical squares are under attack
-    for pos in critical_positions:
-        if not isKingSafe(board, turn, pos):  # Assume this function can check safety for specific positions
-            return False
-
+            kingPos, rookPos, path = 3, 0, [3, 2, 1]
+            if board[kingPos] != 'k' or board[rookPos] != 'r1' or board[2] or board[1]: return False
+    if not isKingSafe(board, turn): return False
+    for pos in path:
+        if not isKingSafe(board, turn, pos): return False
     return True
 
-def printBoard(board):
-    if clearLogs:
-        os.system('cls' if os.name == 'nt' else 'clear')
+def detectCheckmate(board, turn, botWhite, gameStates):
+    team_moves = getAllTeamMoves(turn, board, botWhite, gameStates)
+    legal = [m for moves in team_moves for m in moves if isKingSafe(m, turn)]
+    if legal: return False
+    return not isKingSafe(board, turn)
 
-    for i in range(8):
-        rowText = ""
-
-        for j in range(8):
-            square = board[i * 8 + j]
-            if square:
-                color = ""
-                if square.isupper():  # bot's pieces
-                    match square[0]:
-                        case 'K':
-                            color = Fore.RED + Style.BRIGHT
-                        case 'Q':
-                            color = Fore.RED
-                        case 'B':
-                            color = Fore.MAGENTA
-                        case 'N':
-                            color = Fore.LIGHTMAGENTA_EX + Style.BRIGHT
-                        case 'R':
-                            color = Fore.LIGHTYELLOW_EX + Style.BRIGHT
-                        case 'P':
-                            color = Fore.YELLOW
-                else:  # player's pieces
-                    match square[0]:
-                        case 'k':
-                            color = Fore.GREEN + Style.BRIGHT
-                        case 'q':
-                            color = Fore.GREEN
-                        case 'b':
-                            color = Fore.CYAN
-                        case 'n':
-                            color = Fore.LIGHTCYAN_EX + Style.BRIGHT
-                        case 'r':
-                            color = Fore.LIGHTBLUE_EX + Style.BRIGHT
-                        case 'p':
-                            color = Fore.BLUE
-                    #color = Fore.GREEN if 'k' == square[0] else Fore.CYAN
-
-                # Use color based on piece type
-                pieceDisplay = color + square.rjust(3) + Style.RESET_ALL
-            else:
-                pieceDisplay = '·'.rjust(3)
-
-            rowText += pieceDisplay + " "
-        print(rowText)
-
-def inputValidate(inputString, board, botWhite, turn, gameStates):
-    print("Validating input")
-    inputParts = inputString.strip().split()  # Ensure input is properly split
-
-    if len(inputParts) == 2:
-        piece = inputParts[0]
-        dest = inputParts[1]
-        destIndex = int(dest) if dest.isdigit() else findSquare(dest)
-        if piece in board:
-            print(f"Command parsed as move: {piece} to {dest} (index {destIndex})")
-            if moveValidate(piece, destIndex, turn, board, botWhite, gameStates):
-                return (True, piece, destIndex)
-            else:
-                print("Move validation failed.")
-                return (False, None, None)
-        else:
-            print("Piece not found on board.")
-            return (False, None, None)
-    
-    # Castle            
-    elif inputString.lower() == "castle":
-        if castleValidate(botWhite, turn, board):
-            return ("castle", None, None)
-        else:
-            return (False, None, None)
-    
-    print("Input does not match any valid command format.")
-    return (False, None, None)
+def detectStalemate(board, turn, botWhite, gameStates):
+    team_moves = getAllTeamMoves(turn, board, botWhite, gameStates)
+    legal = [m for moves in team_moves for m in moves if isKingSafe(m, turn)]
+    return (not legal) and isKingSafe(board, turn)
 
 def checkCheckmateOrStalemate(board, turn, botWhite, gameStates):
-    if detectCheckmate(board, turn, botWhite, gameStates):
-        return 'checkmate'
-    if detectStalemate(board, turn, botWhite, gameStates):
-        return 'stalemate'
+    if detectCheckmate(board, turn, botWhite, gameStates): return 'checkmate'
+    if detectStalemate(board, turn, botWhite, gameStates): return 'stalemate'
     return 'none'
+
+# -----------------------------
+# inputValidate (parsing)
+# -----------------------------
+def inputValidate(inputString: str, board, botWhite, turn: str, gameStates):
+    """
+    Parse user input and validate:
+      - 'p2 e4'  -> piece name and dest (index or algebraic)
+      - 'e2 e4'  -> from-square to-square (auto-detect piece)
+      - 'castle' -> special action (validated by castleValidate in route)
+    Returns:
+      - ("castle", None, None) if castling request
+      - (True, piece_name, dest_index) if legal by moveValidate
+      - (False, None, None) otherwise
+    """
+    try:
+        s = inputString.strip()
+        if s.lower() == "castle":
+            return ("castle", None, None)
+
+        parts = s.split()
+        if len(parts) != 2:
+            return (False, None, None)
+
+        a, b = parts[0], parts[1]
+
+        # Case 1: explicit piece name present on board
+        if a in board:
+            piece = a
+            destIndex = int(b) if b.isdigit() else findSquare(b)
+            if destIndex is False:
+                return (False, None, None)
+            if moveValidate(piece, destIndex, turn, board, botWhite, gameStates):
+                return (True, piece, destIndex)
+            return (False, None, None)
+
+        # Case 2: square-to-square: find the piece at source square (must be player's piece)
+        srcIndex = int(a) if a.isdigit() else findSquare(a)
+        if srcIndex is False or not isOnBoard(srcIndex):
+            return (False, None, None)
+        piece = board[srcIndex]
+        if not piece or not ((piece[0].islower() and turn == 'player') or (piece[0].isupper() and turn == 'bot')):
+            return (False, None, None)
+
+        destIndex = int(b) if b.isdigit() else findSquare(b)
+        if destIndex is False or not isOnBoard(destIndex):
+            return (False, None, None)
+
+        if moveValidate(piece, destIndex, turn, board, botWhite, gameStates):
+            return (True, piece, destIndex)
+        return (False, None, None)
+    except Exception as e:
+        logging.exception(f"inputValidate error: {e}")
+        return (False, None, None)

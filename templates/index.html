@@ -4,7 +4,7 @@
     <title>Chess Game</title>
     <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='styles.css') }}">
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
-    <script src="{{ url_for('static', filename='scripts.js') }}"></script>
+    <script defer src="{{ url_for('static', filename='scripts.js') }}"></script>
 </head>
 <body data-turn="{{ turn }}" data-botwhite="{{ 'true' if botWhite else 'false' }}">
     <div class="container">
@@ -26,6 +26,13 @@
             </div>
             <div class="info-container">
                 <h1>Chess</h1>
+                <h2 id="by-section">
+                By
+                <a href="https://github.com/starryxvii" target="_blank" rel="noopener noreferrer" class="github-link" data-url="https://github.com/starryxvii"></a>
+                &
+                <a href="https://github.com/rosharma719" target="_blank" rel="noopener noreferrer" class="github-link" data-url="https://github.com/rosharma719"></a>
+                </h2>
+
                 {% for message, category in get_flashed_messages(with_categories=true) %}
                 <div class="alert alert-{{ category }}">{{ message }}</div>
                 {% endfor %}
@@ -43,8 +50,9 @@
                     </form>
                     {% else %}
                     <div id="move-controls">
-                        <button type="button" onclick="castleMove();">Castle</button>
-                        <button type="button" onclick="resetGame();">Reset Game</button>
+                        <!-- Keep inline handlers if you like; scripts.js also binds by ID -->
+                        <button id="btn-castle" type="button" onclick="castleMove();">Castle</button>
+                        <button id="btn-reset" type="button" onclick="resetGame();">Reset Game</button>
                     </div>
                     {% endif %}
                 </div>
@@ -55,5 +63,8 @@
             </div>
         </div>
     </div>
+
+    <!-- Toasts live here -->
+    <div id="toast-root" aria-live="polite" aria-atomic="true"></div>
 </body>
 </html>

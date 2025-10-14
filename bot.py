@@ -1,173 +1,97 @@
-from gameLogic import *
-import random, logging, numpy
-
-def scoreMove(board, botWhite, gameStates):
-    # Define values for each piece type
-    values = {
-        'K': 5, 'Q': 4, 'R': 3.5, 'B': 3, 'N': 2.5, 'P': 1,
-        'k': 0, 'q': -6, 'r': -5, 'b': -4, 'n': -3, 'p': -2
-    }
-
-    score = 0
-    for piece in board:
-        if piece:
-            # Add or subtract the value of the piece from the score
-            score += values.get(piece[0], 0)
-
-    # Add a small random number to the score to avoid ties
-    score += random.random() * 0.000001
-
-    # Is enemy checkmate
-    if detectCheckmate(board, 'player', botWhite, gameStates):
-        score += 20  
-    # Is bot checkmate
-    if detectCheckmate(board, 'bot', botWhite, gameStates): 
-        score -= 20
-
-    if not (isKingSafe(board, 'player')): 
-        score += 2
-    elif not isKingSafe(board, 'bot'):
-        score -= 15
-
-    return score
-    
-def scoreMoveForEnemy(board, botWhite, gameStates):
-    values = {
-        'K': -5, 'Q': -4, 'R': -3.5, 'B': -3, 'N': -2.5, 'P': -1,
-        'k': 5, 'q': 4, 'r': 3.5, 'b': 3, 'n': 2.5, 'p': 1
-    }
-
-    score = 0
-    for piece in board:
-        if piece:
-            # Subtract bot's piece values and add enemy's piece values
-            score += values.get(piece[0], 0)
-
-    # Add a small random number to the score to avoid ties
-    score += random.random() * 0.000001
-
-    # Adjust the scoring to be more aggressive:
-    # Significantly penalize the bot's king being unsafe
-    if not isKingSafe(board, 'bot'):
-        score += 7
-
-    # Highly reward player's moves leading to bot's checkmate
-    if detectCheckmate(board, 'bot', botWhite, gameStates):
-        score += 20
-
-    # Penalize enemy's king being unsafe less significantly than bot's king safety
-    if not isKingSafe(board, 'player'):
-        score -= 5
-
-    # Significantly reward player's moves leading to player's checkmate
-    if detectCheckmate(board, 'player', botWhite, gameStates):
-        score -= 20
-
-    return score
-
-
-def calculateMove(moves, botWhite, gameStates, turn, depth, pruneRate):
-    # Initialize the root node with the current board state
-    root = Node(getCurrentBoard(gameStates))
-
-    # Build the game tree
-    moveTreeBuilder(root, depth, pruneRate, turn, botWhite, gameStates)
-
-    # After building the tree, select the move corresponding to the highest (or lowest for minimizing player) score
-    if not root.children:
-        return None  # No valid moves available, indicating checkmate or stalemate
-
-    # Find the move with the best score
-    best_move = None
-    if turn == 'bot':  # Bot is maximizing player
-        best_score = float('-inf')
-        for child in root.children:
-            if child.score > best_score:
-                best_score = child.score
-                best_move = child.board
-    else:  # Bot is minimizing player (opponent's turn)
-        best_score = float('inf')
-        for child in root.children:
-            if child.score < best_score:
-                best_score = child.score
-                best_move = child.board
-
-    return best_move
-
+# bot.py
+import random
+from typing import Optional
+from gameLogic import getAllTeamMoves, isKingSafe, detectCheckmate
 
 def getCurrentBoard(gameStates):
-    # Assuming gameStates stores the history of the game, return the current board state
-    return gameStates[-1]  # Modify this line as necessary to fit your implementation
+    return gameStates[-1]
 
+# Simple material values, uppercase = bot, lowercase = player
+_PVAL = {'P':1,'N':3,'B':3,'R':5,'Q':9,'K':0}
 
-def botMove(board, turn, gameStates, botWhite, depth=1, pruneRate=0.3):
+def _material_score(board) -> float:
+    score = 0.0
+    for p in board:
+        if not p:
+            continue
+        base = _PVAL.get(p[0].upper(), 0)
+        score += base if p[0].isupper() else -base
+    return score
+
+def scoreMove(board, botWhite, gameStates) -> float:
+    score = _material_score(board)
+    if detectCheckmate(board, 'player', botWhite, gameStates): score += 1e6
+    if detectCheckmate(board, 'bot', botWhite, gameStates): score -= 1e6
+    if not isKingSafe(board, 'player'): score += 0.5
+    if not isKingSafe(board, 'bot'):    score -= 0.7
+    score += random.random()*1e-6  # tie-break jitter
+    return score
+
+def scoreMoveForEnemy(board, botWhite, gameStates) -> float:
+    # Perspective of the human (player)
+    return -scoreMove(board, botWhite, gameStates)
+
+class Node:
+    def __init__(self, gameState, score: Optional[float] = None):
+        self.board = gameState
+        self.score = score
+        self.children = []
+
+    def add_child(self, child: 'Node'):
+        self.children.append(child)
+
+def calculateMove(moves, botWhite, gameStates, turn, depth, pruneRate):
+    root = Node(getCurrentBoard(gameStates))
+    moveTreeBuilder(root, depth, pruneRate, turn, botWhite, gameStates)
+    if not root.children:
+        return None
+    if turn == 'bot':
+        best = max(root.children, key=lambda c: c.score)
+    else:
+        best = min(root.children, key=lambda c: c.score)
+    return best.board
+
+def botMove(board, turn, gameStates, botWhite, depth: int = 2, pruneRate: float = 0.30):
     moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     if not moves:
         return None
     return calculateMove(moves, botWhite, gameStates, turn, depth, pruneRate)
 
-class Node:
-    def __init__(self, gameState, score=None):
-        self.board = gameState
-        self.score = score
-        self.children = []
-
-    def add_child(self, child):
-        self.children.append(child)
-
-    def __repr__(self):  # For easier debugging
-        return f"Node(score={self.score})"
-
 def checkMove(board, turn, gameStates, botWhite):
     allMoves = getAllTeamMoves(turn, board, botWhite, gameStates)
-    valid_moves = [move for moves in allMoves for move in moves if isKingSafe(move, turn)]
+    legal = [m for moves in allMoves for m in moves if isKingSafe(m, turn)]
+    if not legal:
+        return None
+    best = max(legal, key=lambda b: scoreMove(b, botWhite, gameStates))
+    return best
 
-    if not valid_moves:
-        return None  # No valid moves, likely checkmate
-
-    scores = [scoreMove(move, botWhite, gameStates) for move in valid_moves]
-    highest_score_index = numpy.argmax(scores)
-    return valid_moves[highest_score_index]
-
-
-
-
-def moveTreeBuilder(node, depth, pruneRate, turn, botWhite, gameStates):
+def moveTreeBuilder(node: Node, depth: int, pruneRate: float, turn: str, botWhite: bool, gameStates):
     if depth == 0 or detectCheckmate(node.board, turn, botWhite, gameStates):
-        # Evaluate leaf node using the appropriate scoring function
-        node.score = scoreMove(node.board, botWhite, gameStates) if turn == 'bot' else scoreMoveForEnemy(node.board, botWhite, gameStates)
+        node.score = scoreMove(node.board, botWhite, gameStates)
         return node.score
 
-    # Generate possible moves
     possible_moves = getAllTeamMoves(turn, node.board, botWhite, gameStates)
-    child_nodes = []
-
-    # Evaluate each move and create nodes without recursion yet
+    children = []
     for moves in possible_moves:
-        for move in moves:
-            if isKingSafe(move, turn):  # Ensure the king is safe after the move before considering the move
-                child_node = Node(move)
-                # Score the move immediately
-                child_node.score = scoreMove(move, botWhite, gameStates) if turn == 'bot' else scoreMoveForEnemy(move, botWhite, gameStates)
-                child_nodes.append(child_node)
+        for m in moves:
+            if isKingSafe(m, turn):
+                c = Node(m)
+                c.score = scoreMove(m, botWhite, gameStates)
+                children.append(c)
 
-    # Prune branches: keep only top 'pruneRate' percent moves
-    sorted_child_nodes = sorted(child_nodes, key=lambda x: x.score, reverse=turn == 'bot')
-    if (len(sorted_child_nodes) > 1):
-        pruned_children = sorted_child_nodes[:int(len(sorted_child_nodes) * pruneRate)]
-    else:
-        pruned_children = sorted_child_nodes
-        
-    # Add only the pruned nodes to the tree
-    for child in pruned_children:
-        node.add_child(child)
-        # Recursively build the tree for the pruned moves
-        moveTreeBuilder(child, depth - 1, pruneRate, 'player' if turn == 'bot' else 'bot', botWhite, gameStates)
+    if not children:
+        node.score = scoreMove(node.board, botWhite, gameStates)
+        return node.score
 
-    # Calculate the node score based on the average of child scores
-    if pruned_children:
-        node.score = sum(child.score for child in pruned_children) / len(pruned_children)
-    else:
-        node.score = 0
+    keep = max(1, int(len(children) * max(0.05, min(1.0, pruneRate))))
+    reverse = (turn == 'bot')  # max if bot, min if player
+    children.sort(key=lambda x: x.score, reverse=reverse)
+    pruned = children[:keep]
+    node.children = pruned
 
+    next_turn = 'player' if turn == 'bot' else 'bot'
+    for c in pruned:
+        moveTreeBuilder(c, depth-1, pruneRate, next_turn, botWhite, gameStates)
+
+    node.score = sum(ch.score for ch in pruned) / len(pruned)
     return node.score
