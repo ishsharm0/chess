@@ -1,5 +1,4 @@
 # gameLogic.py
-# Core rules: line pieces, knights, pawns (double, capture, en passant), castling, checks.
 import logging
 from typing import Tuple, Optional
 
@@ -42,8 +41,6 @@ def same_side(a: str, b: str) -> bool:
     return (a.isupper() and b.isupper()) or (a.islower() and b.islower())
 
 _KNIGHT_OFFS = (15, 17, -15, -17, 10, 6, -10, -6)
-_LINE_DIRS = (1, -1, 8, -8)
-_DIAG_DIRS = (9, -9, 7, -7)
 
 def _same_row(a: int, b: int) -> bool:
     return (a // 8) == (b // 8)
@@ -125,7 +122,6 @@ def isKingSafe(board, turn: str, position: Optional[int] = None) -> bool:
     for off in _KNIGHT_OFFS:
         i = king_pos + off
         if isOnBoard(i) and isEnemyPiece(board, i, 'n', enemy):
-            # also ensure L-shape didn’t wrap horizontally (not necessary with offsets, but safe)
             rdiff = abs((i // 8) - (king_pos // 8))
             cdiff = abs((i % 8) - (king_pos % 8))
             if (rdiff, cdiff) in {(1, 2), (2, 1)}:
@@ -337,9 +333,6 @@ def checkCheckmateOrStalemate(board, turn, botWhite, gameStates):
     if detectStalemate(board, turn, botWhite, gameStates): return 'stalemate'
     return 'none'
 
-# -----------------------------
-# inputValidate (parsing)
-# -----------------------------
 def inputValidate(inputString: str, board, botWhite, turn: str, gameStates):
     """
     Parse user input and validate:
@@ -372,7 +365,7 @@ def inputValidate(inputString: str, board, botWhite, turn: str, gameStates):
                 return (True, piece, destIndex)
             return (False, None, None)
 
-        # Case 2: square-to-square: find the piece at source square (must be player's piece)
+        # Case 2: square-to-square
         srcIndex = int(a) if a.isdigit() else findSquare(a)
         if srcIndex is False or not isOnBoard(srcIndex):
             return (False, None, None)
