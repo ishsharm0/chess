@@ -4,7 +4,7 @@ from gameLogic import (
     newBoard, inputValidate, castle, movePiece, isKingSafe,
     checkCheckmateOrStalemate, getAllTeamMoves, promotePawn, castleValidate
 )
-from bot import botMove, checkMove, scoreMoveForEnemy
+from bot import botMove, checkMove, scoreMoveForEnemy, evaluate_move_quality
 import logging, random, os, json
 import dotenv
 
@@ -16,6 +16,12 @@ app.secret_key = os.getenv('SECRET_KEY', 'dev-please-change')
 logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_PRUNE = 0.20  # default beam/prune
+BASE_BOT_DEPTH = 3
+MIN_BOT_DEPTH = 2
+MAX_BOT_DEPTH = 5
+SKILL_EVAL_DEPTH = 2
+SKILL_EMA_ALPHA = 0.20
+SKILL_ERR_CLAMP = 5.0  # pawns-ish
 
 def adjust_prune_rate(rank, total):
     if total <= 1:
@@ -36,6 +42,43 @@ def adjust_prune_rate_based_on_move(board, gameStates, botWhite, current_prune_r
     new_rate = adjust_prune_rate(rank, len(move_scores))
     logging.debug(f"Player move rank {rank}/{len(move_scores)} -> prune {new_rate:.3f}")
     return new_rate
+
+def _depth_from_skill_ema(skill_ema: float) -> int:
+    # skill_ema ~= avg "pawns lost vs best" per move (lower is stronger player).
+    if skill_ema <= 0.25:
+        return MAX_BOT_DEPTH
+    if skill_ema <= 0.60:
+        return max(MIN_BOT_DEPTH, min(MAX_BOT_DEPTH, BASE_BOT_DEPTH + 1))
+    if skill_ema <= 1.25:
+        return BASE_BOT_DEPTH
+    return MIN_BOT_DEPTH
+
+def _update_skill_and_depth(board_before, board_after):
+    """
+    Update `session['skill_ema']` and `session['bot_depth']` based on the quality of the player's move.
+    """
+    try:
+        res = evaluate_move_quality(
+            board_before,
+            board_after,
+            "player",
+            session["botWhite"],
+            session["gameStates"],
+            depth=SKILL_EVAL_DEPTH,
+        )
+        if res is None:
+            return
+        best_score, played_score = res  # player-perspective ("good for player")
+        err = max(0.0, best_score - played_score)
+        err = min(err, SKILL_ERR_CLAMP)
+
+        prev = float(session.get("skill_ema", 0.0))
+        ema = (1.0 - SKILL_EMA_ALPHA) * prev + SKILL_EMA_ALPHA * err
+        session["skill_ema"] = ema
+        session["last_move_error"] = err
+        session["bot_depth"] = _depth_from_skill_ema(ema)
+    except Exception:
+        logging.exception("Skill estimation failed")
 
 def side_in_check(board, side, botWhite, gameStates):
     return not isKingSafe(board, side)
@@ -62,6 +105,10 @@ def index():
     session['promotion_piece'] = None
     session['promotion_dest'] = None
     session['prune_rate'] = DEFAULT_PRUNE
+    session['bot_depth'] = BASE_BOT_DEPTH
+    session['skill_ema'] = 0.0
+    session['last_move_error'] = 0.0
+    session['adaptive'] = bool(config.get("adaptiveDifficulty", True))
     session['game_over'] = False
     session['winner'] = None
 
@@ -69,7 +116,8 @@ def index():
 
     # If bot opens, make its move and check terminal on player's side.
     if session['turn'] == 'bot':
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], pruneRate=session['prune_rate'])
+        depth = session['bot_depth'] if session.get('adaptive') else BASE_BOT_DEPTH
+        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], depth=depth, pruneRate=session['prune_rate'])
         if new_board:
             session['board'] = new_board
             session['gameStates'].append(new_board)
@@ -126,12 +174,16 @@ def make_move():
     move_input = request.json.get('move')
 
     if move_input:
+        board_before = session['board']
         validity, piece, dest = inputValidate(move_input, session['board'], session['botWhite'], session['turn'], session['gameStates'])
         if validity == "castle":
             if not castleValidate(session['botWhite'], session['turn'], session['board']):
                 response['status'] = 'invalid-castle'
             else:
-                session['board'] = castle(session['turn'], session['board'], session['botWhite'])
+                board_after = castle(session['turn'], session['board'], session['botWhite'])
+                if session.get('adaptive') and session['turn'] == 'player':
+                    _update_skill_and_depth(board_before, board_after)
+                session['board'] = board_after
                 session['gameStates'].append(session['board'])
 
                 # After player's move, check terminal on bot side immediately
@@ -149,7 +201,10 @@ def make_move():
 
         elif validity:
             # Normal move
-            session['board'] = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
+            board_after = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
+            if session.get('adaptive') and session['turn'] == 'player':
+                _update_skill_and_depth(board_before, board_after)
+            session['board'] = board_after
             session['gameStates'].append(session['board'])
 
             # Promotion trigger
@@ -169,7 +224,6 @@ def make_move():
                     return jsonify(endp)
 
                 session['turn'] = 'bot'
-                session['prune_rate'] = adjust_prune_rate_based_on_move(session['board'], session['gameStates'], session['botWhite'], session['prune_rate'])
                 response['status'] = 'success'
                 response['in_check'] = side_in_check(session['board'], 'bot', session['botWhite'], session['gameStates'])
         else:
@@ -248,7 +302,8 @@ def bot_move():
         if not isKingSafe(session['board'], session['turn']):
             new_board = checkMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
         else:
-            new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], pruneRate=session['prune_rate'])
+            depth = session.get('bot_depth', BASE_BOT_DEPTH) if session.get('adaptive') else BASE_BOT_DEPTH
+            new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], depth=depth, pruneRate=session['prune_rate'])
 
         if new_board and isKingSafe(new_board, session['turn']):
             session['board'] = new_board
