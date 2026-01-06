@@ -2,6 +2,7 @@
 import math
 from dataclasses import dataclass
 from typing import Optional, List, Dict, Tuple
+import random
 from gameLogic import getAllTeamMoves, isKingSafe, checkCheckmateOrStalemate
 
 def getCurrentBoard(gameStates):
@@ -104,12 +105,23 @@ def scoreMoveForEnemy(board, botWhite, gameStates) -> float:
 def _opponent(turn: str) -> str:
     return "player" if turn == "bot" else "bot"
 
-def _eval_for_side_to_move(board, turn: str, botWhite, gameStates) -> float:
+_ScoreCache = Dict[tuple, float]
+_TerminalCache = Dict[Tuple[tuple, str], str]
+_KingSafeCache = Dict[Tuple[tuple, str], bool]
+
+def _score_move_cached(board, botWhite, gameStates, score_cache: _ScoreCache) -> float:
+    v = score_cache.get(board)
+    if v is None:
+        v = scoreMove(board, botWhite, gameStates)
+        score_cache[board] = v
+    return v
+
+def _eval_for_side_to_move(board, turn: str, botWhite, gameStates, score_cache: _ScoreCache) -> float:
     """
     Negamax-compatible evaluation:
     - positive means good for side-to-move.
     """
-    s = scoreMove(board, botWhite, gameStates)  # bot-centric
+    s = _score_move_cached(board, botWhite, gameStates, score_cache)  # bot-centric
     return s if turn == "bot" else -s
 
 # --- Quiescence search (captures only) ---
@@ -179,15 +191,43 @@ def _is_capture(prev, nxt, turn: str) -> bool:
         return False
     return True
 
-def quiesce(board, turn, alpha, beta, botWhite, gameStates, node_cap=64, ply: int = 0):
-    terminal = checkCheckmateOrStalemate(board, turn, botWhite, gameStates)
+def _terminal_cached(board, turn: str, botWhite, gameStates, terminal_cache: _TerminalCache) -> str:
+    key = (board, turn)
+    v = terminal_cache.get(key)
+    if v is None:
+        v = checkCheckmateOrStalemate(board, turn, botWhite, gameStates)
+        terminal_cache[key] = v
+    return v
+
+def _king_safe_cached(board, turn: str, king_safe_cache: _KingSafeCache) -> bool:
+    key = (board, turn)
+    v = king_safe_cache.get(key)
+    if v is None:
+        v = isKingSafe(board, turn)
+        king_safe_cache[key] = v
+    return v
+
+def quiesce(
+    board,
+    turn,
+    alpha,
+    beta,
+    botWhite,
+    gameStates,
+    score_cache: _ScoreCache,
+    terminal_cache: _TerminalCache,
+    king_safe_cache: _KingSafeCache,
+    node_cap: int = 64,
+    ply: int = 0,
+):
+    terminal = _terminal_cached(board, turn, botWhite, gameStates, terminal_cache)
     if terminal == "checkmate":
         # Side-to-move is mated.
         return -MATE_SCORE + ply
     if terminal == "stalemate":
         return 0.0
 
-    stand_pat = _eval_for_side_to_move(board, turn, botWhite, gameStates)
+    stand_pat = _eval_for_side_to_move(board, turn, botWhite, gameStates, score_cache)
     if stand_pat >= beta:
         return beta
     if alpha < stand_pat:
@@ -200,11 +240,23 @@ def quiesce(board, turn, alpha, beta, botWhite, gameStates, node_cap=64, ply: in
     # consider only capturing moves
     for ms in moves:
         for m in ms:
-            if not isKingSafe(m, turn):
+            if not _king_safe_cached(m, turn, king_safe_cache):
                 continue
             if not _is_capture(board, m, turn):
                 continue
-            score = -quiesce(m, next_turn, -beta, -alpha, botWhite, gameStates, node_cap, ply + 1)
+            score = -quiesce(
+                m,
+                next_turn,
+                -beta,
+                -alpha,
+                botWhite,
+                gameStates,
+                score_cache,
+                terminal_cache,
+                king_safe_cache,
+                node_cap,
+                ply + 1,
+            )
             visited += 1
             if score >= beta:
                 return beta
@@ -220,15 +272,38 @@ class _TTEntry:
     score: float
     flag: str  # "EXACT" | "LOWER" | "UPPER"
     best: Optional[tuple]
+    board: tuple
 
-_TTKey = Tuple[tuple, str]
+_TTKey = Tuple[int, str]
 _TransTable = Dict[_TTKey, _TTEntry]
+
+_Z_RNG = random.Random(0)
+_Z_SQ = [_Z_RNG.getrandbits(64) for _ in range(64)]
+_Z_PIECE: Dict[str, int] = {}
+
+def _z_piece(p: str) -> int:
+    v = _Z_PIECE.get(p)
+    if v is None:
+        v = _Z_RNG.getrandbits(64)
+        _Z_PIECE[p] = v
+    return v
+
+def _zobrist(board) -> int:
+    h = 0
+    for i, p in enumerate(board):
+        if p:
+            h ^= (_Z_SQ[i] ^ _z_piece(p))
+    return h
 
 def _legal_moves_flat(turn: str, board, botWhite, gameStates) -> List[tuple]:
     all_moves = getAllTeamMoves(turn, board, botWhite, gameStates)
     return [m for ms in all_moves for m in ms if isKingSafe(m, turn)]
 
-def _order_score(prev_board, next_board, turn: str, botWhite, gameStates) -> float:
+def _legal_moves_flat_cached(turn: str, board, botWhite, gameStates, king_safe_cache: _KingSafeCache) -> List[tuple]:
+    all_moves = getAllTeamMoves(turn, board, botWhite, gameStates)
+    return [m for ms in all_moves for m in ms if _king_safe_cached(m, turn, king_safe_cache)]
+
+def _order_score(prev_board, next_board, turn: str, botWhite, gameStates, king_safe_cache: _KingSafeCache) -> float:
     """
     Cheap-ish move ordering heuristic.
     Higher is better for the side `turn` (negamax viewpoint).
@@ -238,38 +313,52 @@ def _order_score(prev_board, next_board, turn: str, botWhite, gameStates) -> flo
         s = -s
     if _is_capture(prev_board, next_board, turn):
         s += 0.75
-    if not isKingSafe(next_board, _opponent(turn)):
+    if not _king_safe_cached(next_board, _opponent(turn), king_safe_cache):
         s += 0.25
     return s
 
-def _ordered_moves(turn: str, board, botWhite, gameStates, tt: _TransTable, depth: int) -> List[tuple]:
-    moves = _legal_moves_flat(turn, board, botWhite, gameStates)
+def _ordered_moves(turn: str, board, botWhite, gameStates, tt: _TransTable, depth: int, king_safe_cache: _KingSafeCache) -> List[tuple]:
+    moves = _legal_moves_flat_cached(turn, board, botWhite, gameStates, king_safe_cache)
     if not moves:
         return moves
 
-    key: _TTKey = (board, turn)
-    tt_best = tt.get(key).best if key in tt else None
+    key: _TTKey = (_zobrist(board), turn)
+    entry = tt.get(key)
+    tt_best = entry.best if (entry is not None and entry.board == board) else None
     if tt_best is not None and tt_best in moves:
         moves.remove(tt_best)
-        moves.sort(key=lambda m: _order_score(board, m, turn, botWhite, gameStates), reverse=True)
+        moves.sort(key=lambda m: _order_score(board, m, turn, botWhite, gameStates, king_safe_cache), reverse=True)
         return [tt_best] + moves
 
-    moves.sort(key=lambda m: _order_score(board, m, turn, botWhite, gameStates), reverse=True)
+    moves.sort(key=lambda m: _order_score(board, m, turn, botWhite, gameStates, king_safe_cache), reverse=True)
     return moves
 
-def _negamax(board, turn: str, depth: int, alpha: float, beta: float, botWhite, gameStates, tt: _TransTable, ply: int) -> float:
-    terminal = checkCheckmateOrStalemate(board, turn, botWhite, gameStates)
+def _negamax(
+    board,
+    turn: str,
+    depth: int,
+    alpha: float,
+    beta: float,
+    botWhite,
+    gameStates,
+    tt: _TransTable,
+    score_cache: _ScoreCache,
+    terminal_cache: _TerminalCache,
+    king_safe_cache: _KingSafeCache,
+    ply: int,
+) -> float:
+    terminal = _terminal_cached(board, turn, botWhite, gameStates, terminal_cache)
     if terminal == "checkmate":
         return -MATE_SCORE + ply
     if terminal == "stalemate":
         return 0.0
 
     if depth == 0:
-        return quiesce(board, turn, alpha, beta, botWhite, gameStates, ply=ply)
+        return quiesce(board, turn, alpha, beta, botWhite, gameStates, score_cache, terminal_cache, king_safe_cache, ply=ply)
 
-    key: _TTKey = (board, turn)
+    key: _TTKey = (_zobrist(board), turn)
     entry = tt.get(key)
-    if entry is not None and entry.depth >= depth:
+    if entry is not None and entry.board == board and entry.depth >= depth:
         if entry.flag == "EXACT":
             return entry.score
         if entry.flag == "LOWER":
@@ -284,14 +373,27 @@ def _negamax(board, turn: str, depth: int, alpha: float, beta: float, botWhite, 
     best_move = None
     best_score = float("-inf")
 
-    moves = _ordered_moves(turn, board, botWhite, gameStates, tt, depth)
+    moves = _ordered_moves(turn, board, botWhite, gameStates, tt, depth, king_safe_cache)
     if not moves:
         # Should be handled by terminal detection, but keep safe fallback.
         return 0.0
 
     nxt = _opponent(turn)
     for m in moves:
-        score = -_negamax(m, nxt, depth - 1, -beta, -alpha, botWhite, gameStates, tt, ply + 1)
+        score = -_negamax(
+            m,
+            nxt,
+            depth - 1,
+            -beta,
+            -alpha,
+            botWhite,
+            gameStates,
+            tt,
+            score_cache,
+            terminal_cache,
+            king_safe_cache,
+            ply + 1,
+        )
         if score > best_score:
             best_score = score
             best_move = m
@@ -305,11 +407,21 @@ def _negamax(board, turn: str, depth: int, alpha: float, beta: float, botWhite, 
         flag = "UPPER"
     elif best_score >= beta_orig:
         flag = "LOWER"
-    tt[key] = _TTEntry(depth=depth, score=best_score, flag=flag, best=best_move)
+    tt[key] = _TTEntry(depth=depth, score=best_score, flag=flag, best=best_move, board=board)
     return best_score
 
-def _root_search(board, turn: str, depth: int, botWhite, gameStates, tt: _TransTable) -> Optional[tuple]:
-    moves = _ordered_moves(turn, board, botWhite, gameStates, tt, depth)
+def _root_search(
+    board,
+    turn: str,
+    depth: int,
+    botWhite,
+    gameStates,
+    tt: _TransTable,
+    score_cache: _ScoreCache,
+    terminal_cache: _TerminalCache,
+    king_safe_cache: _KingSafeCache,
+) -> Optional[tuple]:
+    moves = _ordered_moves(turn, board, botWhite, gameStates, tt, depth, king_safe_cache)
     if not moves:
         return None
     alpha = float("-inf")
@@ -318,21 +430,37 @@ def _root_search(board, turn: str, depth: int, botWhite, gameStates, tt: _TransT
     best_score: float = float("-inf")
     nxt = _opponent(turn)
     for m in moves:
-        score = -_negamax(m, nxt, depth - 1, -beta, -alpha, botWhite, gameStates, tt, ply=1)
+        score = -_negamax(
+            m,
+            nxt,
+            depth - 1,
+            -beta,
+            -alpha,
+            botWhite,
+            gameStates,
+            tt,
+            score_cache,
+            terminal_cache,
+            king_safe_cache,
+            ply=1,
+        )
         if score > best_score:
             best_score = score
             best_move = m
         if score > alpha:
             alpha = score
     # Store the PV move at the root too.
-    tt[(board, turn)] = _TTEntry(depth=depth, score=best_score, flag="EXACT", best=best_move)
+    tt[(_zobrist(board), turn)] = _TTEntry(depth=depth, score=best_score, flag="EXACT", best=best_move, board=board)
     return best_move, best_score
 
 def calculateMove(board, botWhite, gameStates, turn: str, depth: int) -> Optional[tuple]:
     tt: _TransTable = {}
+    score_cache: _ScoreCache = {}
+    terminal_cache: _TerminalCache = {}
+    king_safe_cache: _KingSafeCache = {}
     best = None
     for d in range(1, depth + 1):
-        res = _root_search(board, turn, d, botWhite, gameStates, tt)
+        res = _root_search(board, turn, d, botWhite, gameStates, tt, score_cache, terminal_cache, king_safe_cache)
         best = res[0] if res is not None else None
         if best is None:
             return None
@@ -360,7 +488,10 @@ def evaluate_move_quality(
         return None
 
     tt: _TransTable = {}
-    res = _root_search(before_board, turn, depth, botWhite, gameStates, tt)
+    score_cache: _ScoreCache = {}
+    terminal_cache: _TerminalCache = {}
+    king_safe_cache: _KingSafeCache = {}
+    res = _root_search(before_board, turn, depth, botWhite, gameStates, tt, score_cache, terminal_cache, king_safe_cache)
     if res is None:
         return None
     _, best_score = res
@@ -376,6 +507,9 @@ def evaluate_move_quality(
         botWhite,
         gameStates,
         tt,
+        score_cache,
+        terminal_cache,
+        king_safe_cache,
         ply=1,
     )
     return best_score, played_score

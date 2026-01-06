@@ -208,25 +208,113 @@ def moveValidate(piece: str, dest: int, turn: str, board, botWhite, gameStates) 
     return False
 
 def getPieceMoves(piece, originalBoard, botWhite, gameStates):
-    moves = []
-    if piece is None: return tuple()
+    if piece is None:
+        return tuple()
     src = findPiece(piece, originalBoard)
-    if src == -1: return tuple()
+    if src == -1:
+        return tuple()
+
     turn = 'player' if piece[0].islower() else 'bot'
+    t = piece[0].lower()
+    moves = []
+    last = _last_move(gameStates)
+
+    def add_move(dest: int):
+        if dest == src:
+            return
+        if not moveValidate(piece, dest, turn, originalBoard, botWhite, gameStates):
+            return
+        b = list(originalBoard)
+        # handle en passant capture removal
+        if t == 'p' and b[dest] is None and (abs((dest % 8) - (src % 8)) == 1) and last:
+            _, _, to_idx = last
+            if (to_idx // 8) == (src // 8) and (to_idx % 8) == (dest % 8):
+                b[to_idx] = None
+        b[dest] = piece
+        b[src] = None
+        moves.append(tuple(b))
+
+    def ray(step: int):
+        i = src + step
+        while isOnBoard(i) and _valid_step(i - step, i, step):
+            if originalBoard[i] is None:
+                add_move(i)
+            else:
+                if not same_side(piece, originalBoard[i]):
+                    add_move(i)
+                break
+            i += step
+
+    if t == 'r':
+        for step in (1, -1, 8, -8):
+            ray(step)
+        return tuple(moves)
+
+    if t == 'b':
+        for step in (7, -7, 9, -9):
+            ray(step)
+        return tuple(moves)
+
+    if t == 'q':
+        for step in (1, -1, 8, -8, 7, -7, 9, -9):
+            ray(step)
+        return tuple(moves)
+
+    if t == 'n':
+        sr, sc = src // 8, src % 8
+        for off in _KNIGHT_OFFS:
+            dest = src + off
+            if not isOnBoard(dest):
+                continue
+            dr = abs((dest // 8) - sr)
+            dc = abs((dest % 8) - sc)
+            if (dr, dc) not in {(1, 2), (2, 1)}:
+                continue
+            if originalBoard[dest] is None or not same_side(piece, originalBoard[dest]):
+                add_move(dest)
+        return tuple(moves)
+
+    if t == 'k':
+        for off in (-1, 1, -8, 8, -9, -7, 9, 7):
+            dest = src + off
+            if not isOnBoard(dest) or not _valid_step(src, dest, off):
+                continue
+            if originalBoard[dest] is None or not same_side(piece, originalBoard[dest]):
+                add_move(dest)
+        return tuple(moves)
+
+    if t == 'p':
+        forward = 1 if turn == 'player' else -1
+        start_row = 1 if turn == 'player' else 6
+        one = src + 8 * forward
+        if isOnBoard(one) and _valid_step(src, one, 8 * forward) and originalBoard[one] is None:
+            add_move(one)
+            two = src + 16 * forward
+            if (src // 8) == start_row and isOnBoard(two) and originalBoard[two] is None:
+                # if one is empty then two is reachable
+                add_move(two)
+
+        # captures and en passant
+        for step in (7 * forward, 9 * forward):
+            dest = src + step
+            if not isOnBoard(dest) or not _valid_step(src, dest, step):
+                continue
+            target = originalBoard[dest]
+            if target is not None:
+                if not same_side(piece, target):
+                    add_move(dest)
+                continue
+            # potential en passant: diagonal into empty square
+            if last:
+                last_piece, from_idx, to_idx = last
+                if last_piece and last_piece[0].lower() == 'p' and abs(to_idx - from_idx) == 16:
+                    if not same_side(piece, last_piece) and (to_idx // 8) == (src // 8) and (to_idx % 8) == (dest % 8):
+                        add_move(dest)
+        return tuple(moves)
+
+    # Fallback (shouldn't happen)
     for dest in range(64):
-        if dest == src: continue
-        if moveValidate(piece, dest, turn, originalBoard, botWhite, gameStates):
-            b = list(originalBoard)
-            # handle en passant capture removal
-            if piece[0].lower() == 'p' and b[dest] is None and (abs((dest%8)-(src%8)) == 1):
-                last = _last_move(gameStates)
-                if last:
-                    _, _, to_idx = last
-                    if (to_idx // 8) == (src // 8) and (to_idx % 8) == (dest % 8):
-                        b[to_idx] = None
-            b[dest] = piece
-            b[src] = None
-            moves.append(tuple(b))
+        add_move(dest)
     return tuple(moves)
 
 def getAllTeamMoves(team, board, botWhite, gameStates):
