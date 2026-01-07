@@ -14,7 +14,8 @@ from typing import Optional
 dotenv.load_dotenv()
 config = json.load(open("config.json"))
 app = Flask(__name__, static_folder='static', template_folder='templates')
-app.secret_key = os.getenv('SECRET_KEY', 'dev-please-change')
+# Use a stable key in production via env var; in local/dev default to a random key so restarts reset sessions.
+app.secret_key = os.getenv('SECRET_KEY') or os.urandom(32)
 logging.basicConfig(level=logging.DEBUG)
 
 DEFAULT_PRUNE = 0.20  # default beam/prune

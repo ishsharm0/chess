@@ -19,3 +19,12 @@ python app.py
 ```
 
 To play the game in your console, simply run `python consoleMode.py` instead of `python app.py`.
+
+## Engine Testing (Optional)
+
+This repo includes a minimal UCI wrapper (`uci.py`) so you can play games against other engines like Stockfish.
+
+- Run a direct OurBot vs Stockfish match (prints moves live):
+  - `python match_runner.py --black stockfish --movetime-ms 30000 --pgnout matches.pgn`
+- Run move-generation correctness checks (perft):
+  - `python perft.py startpos 4`

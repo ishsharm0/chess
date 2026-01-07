@@ -232,11 +232,15 @@ def quiesce(
     # consider only capturing moves
     for ms in moves:
         for m in ms:
+            if not _is_capture(board, m, turn):
+                # We don't explore quiet moves in quiescence, but we still need to know whether
+                # any legal move exists to distinguish stalemate/checkmate.
+                if not any_legal and _king_safe_cached(m, turn, king_safe_cache):
+                    any_legal = True
+                continue
             if not _king_safe_cached(m, turn, king_safe_cache):
                 continue
             any_legal = True
-            if not _is_capture(board, m, turn):
-                continue
             score = -quiesce(
                 m,
                 next_turn,
@@ -490,6 +494,24 @@ def calculateMove(board, botWhite, gameStates, turn: str, depth: int, time_limit
     score_cache: _ScoreCache = {}
     king_safe_cache: _KingSafeCache = {}
     best = None
+
+    # If the side to move has no legal moves, this is terminal (checkmate or stalemate).
+    terminal = checkCheckmateOrStalemate(board, turn, botWhite, gameStates)
+    if terminal in ("checkmate", "stalemate"):
+        return None
+
+    # Always keep *some* legal move available as a fallback in case the search bails out
+    # early (timeouts, edge-case TT cutoffs, etc.). We only return None on true terminals.
+    def _fallback_legal_move() -> Optional[tuple]:
+        all_moves = getAllTeamMoves(turn, board, botWhite, gameStates)
+        for ms in all_moves:
+            for m in ms:
+                if _king_safe_cached(m, turn, king_safe_cache):
+                    return m
+        return None
+
+    fallback = _fallback_legal_move()
+
     deadline = (time.perf_counter() + time_limit_s) if time_limit_s is not None else None
     ctx = _SearchCtx(deadline=deadline) if deadline is not None else None
     for d in range(1, depth + 1):
@@ -500,7 +522,7 @@ def calculateMove(board, botWhite, gameStates, turn: str, depth: int, time_limit
         best = res[0] if res is not None else None
         if best is None:
             return None
-    return best
+    return best if best is not None else fallback
 
 def botMove(board, turn, gameStates, botWhite, depth: int = 3, pruneRate: float = 0.20, time_limit_s: Optional[float] = None, debug: bool = False):
     # `pruneRate` kept for API compatibility; beam pruning was replaced by iterative deepening + TT.
@@ -513,7 +535,7 @@ def botMove(board, turn, gameStates, botWhite, depth: int = 3, pruneRate: float 
     king_safe_cache: _KingSafeCache = {}
     best = None
     deadline = (time.perf_counter() + time_limit_s) if time_limit_s is not None else None
-    ctx = _SearchCtx(deadline=deadline) if deadline is not None else None
+    ctx = _SearchCtx(deadline=deadline)
     for d in range(1, depth + 1):
         try:
             t0 = time.perf_counter()
@@ -525,14 +547,11 @@ def botMove(board, turn, gameStates, botWhite, depth: int = 3, pruneRate: float 
         best = res[0] if res is not None else None
         if best is None:
             return None
-        if ctx is None:
-            logging.info(f"search d={d} dt={dt:.3f}s tt={len(tt)} eval_cache={len(score_cache)} king_cache={len(king_safe_cache)}")
-        else:
-            logging.info(
-                f"search d={d} dt={dt:.3f}s nodes={ctx.nodes} qnodes={ctx.qnodes} "
-                f"tt={len(tt)} probes={ctx.tt_probes} hits={ctx.tt_hits} "
-                f"eval_cache={len(score_cache)} king_cache={len(king_safe_cache)}"
-            )
+        logging.info(
+            f"search d={d} dt={dt:.3f}s nodes={ctx.nodes} qnodes={ctx.qnodes} "
+            f"tt={len(tt)} probes={ctx.tt_probes} hits={ctx.tt_hits} "
+            f"eval_cache={len(score_cache)} king_cache={len(king_safe_cache)}"
+        )
     return best
 
 def evaluate_move_quality(
