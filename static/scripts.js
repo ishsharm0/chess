@@ -81,13 +81,37 @@ const Toast = (() => {
 let selectedPiece = null;   // piece name like 'p2' or 'N1'
 let promotionOpen = false;
 
-function resetGame() {
-  window.location.href = "/"; // reset via server
+function qs(sel, root = document) {
+  return root.querySelector(sel);
+}
+
+function qsa(sel, root = document) {
+  return Array.from(root.querySelectorAll(sel));
 }
 
 function setTurn(turn) {
-  $(".turn-display span").text(turn);
-  $("body").attr("data-turn", turn);
+  const turnSpan = qs(".turn-display span");
+  if (turnSpan) turnSpan.textContent = turn;
+  document.body.setAttribute("data-turn", turn);
+}
+
+function isPlayersTurn() {
+  return document.body.getAttribute("data-turn") === "player";
+}
+
+async function postJson(url, payload) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload || {}),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok) throw new Error(data?.status || `HTTP ${resp.status}`);
+  return data;
+}
+
+function resetGame() {
+  window.location.href = "/"; // reset via server
 }
 
 function updateBoard(board, turn) {
@@ -107,12 +131,14 @@ function updateBoard(board, turn) {
 
 function showPromotionForm() {
   promotionOpen = true;
-  $(".promotion-form").show();
+  const form = qs(".promotion-form");
+  if (form) form.style.display = "block";
 }
 
 function hidePromotionForm() {
   promotionOpen = false;
-  $(".promotion-form").hide();
+  const form = qs(".promotion-form");
+  if (form) form.style.display = "none";
 }
 
 function notifyCheckIfAny(resp) {
@@ -124,12 +150,8 @@ function notifyCheckIfAny(resp) {
 
 function makeMove(moveInput) {
   if (!moveInput) return;
-  $.ajax({
-    url: "/make_move",
-    type: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({ move: moveInput }),
-    success: function (response) {
+  postJson("/make_move", { move: moveInput })
+    .then((response) => {
       updateBoard(response.board, response.turn);
       switch (response.status) {
         case "success":
@@ -155,20 +177,15 @@ function makeMove(moveInput) {
         default:
           Toast.show(response.status || "Invalid move.", "error", { timeout: 2200 });
       }
-    },
-    error: function () {
+    })
+    .catch(() => {
       Toast.show("Error making move.", "error", { timeout: 2400 });
-    },
-  });
+    });
 }
 
 function sendPromotion(choice) {
-  $.ajax({
-    url: "/promote",
-    type: "POST",
-    contentType: "application/json",
-    data: JSON.stringify({ piece: choice }),
-    success: function (response) {
+  postJson("/promote", { piece: choice })
+    .then((response) => {
       updateBoard(response.board, response.turn);
       hidePromotionForm();
 
@@ -187,18 +204,15 @@ function sendPromotion(choice) {
         notifyCheckIfAny(response);
         if (response.turn === "bot") botMove();
       }
-    },
-    error: function () {
+    })
+    .catch(() => {
       Toast.show("Error promoting pawn.", "error", { timeout: 2400 });
-    },
-  });
+    });
 }
 
 function botMove() {
-  $.ajax({
-    url: "/bot_move",
-    type: "POST",
-    success: function (response) {
+  postJson("/bot_move")
+    .then((response) => {
       updateBoard(response.board, response.turn);
       if (response.status === "checkmate") {
         Toast.show(`Checkmate! Winner: ${response.winner}`, "mate", { timeout: 1800 });
@@ -211,38 +225,41 @@ function botMove() {
       } else if (response.status === "error") {
         Toast.show("Bot couldn't find a valid move.", "error", { timeout: 2200 });
       }
-    },
-    error: function () {
+    })
+    .catch(() => {
       Toast.show("Error with bot move.", "error", { timeout: 2400 });
-    },
-  });
+    });
 }
 
 // Keep a callable function if template uses inline onclick
 function castleMove() {
-  if ($("body").attr("data-turn") !== "player" || promotionOpen) return;
+  if (!isPlayersTurn() || promotionOpen) return;
   makeMove("castle");
 }
 
+function clearSelection() {
+  qsa(".chess-board td.selected").forEach((td) => td.classList.remove("selected"));
+}
 
-$(document).ready(function () {
+document.addEventListener("DOMContentLoaded", () => {
   hidePromotionForm();
 
   // Promotion form handler (if present in template)
-  $(".promotion-form").on("submit", function (e) {
+  const promotionForm = qs(".promotion-form");
+  if (promotionForm) promotionForm.addEventListener("submit", function (e) {
     e.preventDefault();
-    const choice = ($("#promotion_piece").val() || "QUEEN").toUpperCase();
+    const sel = qs("#promotion_piece");
+    const choice = ((sel && sel.value) || "QUEEN").toUpperCase();
     sendPromotion(choice);
   });
 
-  $(".chess-board td").on("click", function () {
+  qsa(".chess-board td").forEach((cell) => cell.addEventListener("click", function () {
     // block clicks if it's not the player's turn or promotion dialog is open
-    if ($("body").attr("data-turn") !== "player" || promotionOpen) return;
+    if (!isPlayersTurn() || promotionOpen) return;
 
-    const cellId = $(this).attr("id");
-    const cellIndex = parseInt(cellId.split("-")[1], 10);
-    const img = $(this).find("img");
-    const piece = img.length ? img.attr("alt") : null;
+    const cellIndex = parseInt(this.id.split("-")[1], 10);
+    const img = qs("img", this);
+    const piece = img ? img.getAttribute("alt") : null;
 
     // First click: select a player piece (lowercase name)
     if (!selectedPiece) {
@@ -251,56 +268,40 @@ $(document).ready(function () {
         return;
       }
       selectedPiece = piece;
-      $(".chess-board td").removeClass("selected");
-      $(this).addClass("selected");
+      clearSelection();
+      this.classList.add("selected");
       return;
     }
 
     // Clicking another player's piece switches selection
     if (piece && piece[0] === piece[0].toLowerCase()) {
-      $(".chess-board td").removeClass("selected");
+      clearSelection();
       selectedPiece = piece;
-      $(this).addClass("selected");
+      this.classList.add("selected");
       return;
     }
 
     // Attempt a move: "<piece> <destIndex>"
     const moveInput = `${selectedPiece} ${cellIndex}`;
     selectedPiece = null;
-    $(".chess-board td").removeClass("selected");
+    clearSelection();
     makeMove(moveInput);
+  }));
+
+  qsa(".chess-board td").forEach((cell) => {
+    cell.addEventListener("mouseenter", () => cell.classList.add("hover"));
+    cell.addEventListener("mouseleave", () => cell.classList.remove("hover"));
   });
 
-  $(".chess-board td").hover(
-    function () { $(this).addClass("hover"); },
-    function () { $(this).removeClass("hover"); }
-  );
-
   // Buttons (works with or without inline onclicks)
-  $("#btn-castle").on("click", castleMove);
-  $("#btn-reset").on("click", resetGame);
+  const btnCastle = qs("#btn-castle");
+  if (btnCastle) btnCastle.addEventListener("click", castleMove);
+  const btnReset = qs("#btn-reset");
+  if (btnReset) btnReset.addEventListener("click", resetGame);
 
-  $(".github-link").each(function () {
-    const link = $(this);
-    const url = link.data("url");
-
-    // GitHub blocks CORS for HTML, so use GitHub's public API to get user info instead
-    // Extract username from URL
-    const username = url.split("github.com/")[1].split("/")[0];
-
-    fetch(`https://api.github.com/users/${username}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data && data.name) {
-          link.text(data.name);
-        } else if (data && data.login) {
-          link.text(data.login);
-        } else {
-          link.text(username);
-        }
-      })
-      .catch(() => {
-        link.text(username);
-      });
+  qsa(".github-link").forEach((link) => {
+    const url = link.getAttribute("data-url") || link.getAttribute("href") || "";
+    const username = (url.split("github.com/")[1] || "").split("/")[0] || "GitHub";
+    link.textContent = username;
   });
 });

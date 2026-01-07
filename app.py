@@ -7,6 +7,8 @@ from gameLogic import (
 from bot import botMove, checkMove, scoreMoveForEnemy, evaluate_move_quality
 import logging, random, os, json
 import dotenv
+import time
+from typing import Optional
 
 # --- Config / init ---
 dotenv.load_dotenv()
@@ -22,6 +24,33 @@ MAX_BOT_DEPTH = 5
 SKILL_EVAL_DEPTH = 2
 SKILL_EMA_ALPHA = 0.20
 SKILL_ERR_CLAMP = 5.0  # pawns-ish
+
+def adaptive_enabled() -> bool:
+    return bool(config.get("adaptiveDifficulty", True))
+
+def bot_time_limit_s() -> Optional[float]:
+    """
+    Optional hard time limit for bot search (seconds). Set to 0/None to disable.
+    """
+    v = config.get("botTimeLimitSeconds", None)
+    try:
+        if v is None:
+            return None
+        v = float(v)
+        return None if v <= 0 else v
+    except Exception:
+        return None
+
+def asset_version() -> str:
+    """
+    Cache-busting for Safari/others: version static assets by mtime.
+    """
+    try:
+        js_m = int(os.path.getmtime(os.path.join(app.static_folder, "scripts.js")))
+        css_m = int(os.path.getmtime(os.path.join(app.static_folder, "styles.css")))
+        return f"{js_m}-{css_m}"
+    except Exception:
+        return "0"
 
 def adjust_prune_rate(rank, total):
     if total <= 1:
@@ -108,7 +137,7 @@ def index():
     session['bot_depth'] = BASE_BOT_DEPTH
     session['skill_ema'] = 0.0
     session['last_move_error'] = 0.0
-    session['adaptive'] = bool(config.get("adaptiveDifficulty", True))
+    session['adaptive'] = adaptive_enabled()
     session['game_over'] = False
     session['winner'] = None
 
@@ -116,11 +145,21 @@ def index():
 
     # If bot opens, make its move and check terminal on player's side.
     if session['turn'] == 'bot':
-        depth = session['bot_depth'] if session.get('adaptive') else BASE_BOT_DEPTH
-        new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], depth=depth, pruneRate=session['prune_rate'])
-        if new_board:
+        depth = session['bot_depth'] if adaptive_enabled() else BASE_BOT_DEPTH
+        new_board = botMove(
+            session['board'],
+            session['turn'],
+            session['gameStates'],
+            session['botWhite'],
+            depth=depth,
+            pruneRate=session['prune_rate'],
+            time_limit_s=bot_time_limit_s(),
+            debug=bool(config.get("debugMode", False)),
+        )
+        if new_board and isKingSafe(new_board, 'bot'):
             session['board'] = new_board
             session['gameStates'].append(new_board)
+            session['gameStates'] = session['gameStates'][-2:]
             # Check if player is already mated/stalemated before handing turn
             status = _check_terminal_for('player')
             if status == 'checkmate':
@@ -135,6 +174,10 @@ def index():
 
 @app.get('/active')
 def active():
+    # If session state is missing (e.g., direct navigation or server restart), start a new game.
+    if 'board' not in session or 'turn' not in session or 'gameStates' not in session:
+        return redirect(url_for('index'))
+    v = asset_version()
     return render_template(
         'index.html',
         board=session.get('board'),
@@ -142,11 +185,16 @@ def active():
         promote=session.get('promote'),
         botWhite=session.get('botWhite'),
         game_over=session.get('game_over'),
-        winner=session.get('winner')
+        winner=session.get('winner'),
+        asset_v=v,
     )
 
 @app.post('/make_move')
 def make_move():
+    # Make config changes take effect immediately even with an existing session cookie.
+    session['adaptive'] = adaptive_enabled()
+    if 'board' not in session or 'turn' not in session or 'gameStates' not in session:
+        return jsonify({'status': 'no-session'}), 400
     # If game is already over, refuse further moves.
     if session.get('game_over'):
         return jsonify({
@@ -181,10 +229,23 @@ def make_move():
                 response['status'] = 'invalid-castle'
             else:
                 board_after = castle(session['turn'], session['board'], session['botWhite'])
-                if session.get('adaptive') and session['turn'] == 'player':
+                # Reject any move that leaves the mover's king in check.
+                if not isKingSafe(board_after, session['turn']):
+                    response['status'] = 'self-check'
+                    response.update({
+                        'board': session['board'],
+                        'turn': session['turn'],
+                        'promote': session['promote'],
+                        'botWhite': session['botWhite'],
+                        'game_over': session['game_over'],
+                        'winner': session['winner']
+                    })
+                    return jsonify(response)
+                if adaptive_enabled() and session['turn'] == 'player':
                     _update_skill_and_depth(board_before, board_after)
                 session['board'] = board_after
                 session['gameStates'].append(session['board'])
+                session['gameStates'] = session['gameStates'][-2:]
 
                 # After player's move, check terminal on bot side immediately
                 outcome = _check_terminal_for('bot')
@@ -202,10 +263,23 @@ def make_move():
         elif validity:
             # Normal move
             board_after = movePiece(piece, dest, session['board'], session['gameStates'], session['turn'])
-            if session.get('adaptive') and session['turn'] == 'player':
+            # Reject any move that leaves the mover's king in check.
+            if not isKingSafe(board_after, session['turn']):
+                response['status'] = 'self-check'
+                response.update({
+                    'board': session['board'],
+                    'turn': session['turn'],
+                    'promote': session['promote'],
+                    'botWhite': session['botWhite'],
+                    'game_over': session['game_over'],
+                    'winner': session['winner']
+                })
+                return jsonify(response)
+            if adaptive_enabled() and session['turn'] == 'player':
                 _update_skill_and_depth(board_before, board_after)
             session['board'] = board_after
             session['gameStates'].append(session['board'])
+            session['gameStates'] = session['gameStates'][-2:]
 
             # Promotion trigger
             if piece[0].lower() == 'p' and (dest // 8 in (0, 7)):
@@ -241,6 +315,9 @@ def make_move():
 
 @app.post('/promote')
 def promote():
+    session['adaptive'] = adaptive_enabled()
+    if 'board' not in session or 'turn' not in session or 'gameStates' not in session:
+        return jsonify({'status': 'no-session'}), 400
     if session.get('game_over'):
         return jsonify({
             'status': 'game-over',
@@ -257,6 +334,7 @@ def promote():
     dest = session['promotion_dest']
     session['board'] = promotePawn(piece, dest, choice, session['board'], 'player')
     session['gameStates'].append(session['board'])
+    session['gameStates'] = session['gameStates'][-2:]
     session['promote'] = False
     session['promotion_piece'] = None
     session['promotion_dest'] = None
@@ -280,6 +358,10 @@ def promote():
 
 @app.post('/bot_move')
 def bot_move():
+    # Make config changes take effect immediately even with an existing session cookie.
+    session['adaptive'] = adaptive_enabled()
+    if 'board' not in session or 'turn' not in session or 'gameStates' not in session:
+        return jsonify({'status': 'no-session'}), 400
     # If game is already over, refuse further moves.
     if session.get('game_over'):
         return jsonify({
@@ -299,15 +381,25 @@ def bot_move():
         if pre_status == 'stalemate':
             return jsonify(_end_game('stalemate', winner=None))
 
-        if not isKingSafe(session['board'], session['turn']):
-            new_board = checkMove(session['board'], session['turn'], session['gameStates'], session['botWhite'])
-        else:
-            depth = session.get('bot_depth', BASE_BOT_DEPTH) if session.get('adaptive') else BASE_BOT_DEPTH
-            new_board = botMove(session['board'], session['turn'], session['gameStates'], session['botWhite'], depth=depth, pruneRate=session['prune_rate'])
+        depth = session.get('bot_depth', BASE_BOT_DEPTH) if adaptive_enabled() else BASE_BOT_DEPTH
+        t0 = time.perf_counter()
+        new_board = botMove(
+            session['board'],
+            session['turn'],
+            session['gameStates'],
+            session['botWhite'],
+            depth=depth,
+            pruneRate=session['prune_rate'],
+            time_limit_s=bot_time_limit_s(),
+            debug=bool(config.get("debugMode", False)),
+        )
+        dt = time.perf_counter() - t0
+        logging.info(f"bot_move depth={depth} adaptive={adaptive_enabled()} took {dt:.3f}s")
 
         if new_board and isKingSafe(new_board, session['turn']):
             session['board'] = new_board
             session['gameStates'].append(new_board)
+            session['gameStates'] = session['gameStates'][-2:]
 
             # After bot's move, check terminal on player's side immediately
             status = _check_terminal_for('player')

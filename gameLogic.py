@@ -96,7 +96,7 @@ def isKingSafe(board, turn: str, position: Optional[int] = None) -> bool:
     pawn_attacks = (-9, -7) if turn == 'bot' else (9, 7)
     for off in pawn_attacks:
         pos = king_pos + off
-        if isOnBoard(pos) and isEnemyPiece(board, pos, 'p', enemy):
+        if isOnBoard(pos) and _valid_step(king_pos, pos, off) and isEnemyPiece(board, pos, 'p', enemy):
             return False
     # Rook/Queen lines
     for d in (1, -1, 8, -8):
@@ -129,7 +129,7 @@ def isKingSafe(board, turn: str, position: Optional[int] = None) -> bool:
     # Opposing king adjacency
     for off in (-1, 1, -8, 8, -9, -7, 9, 7):
         i = king_pos + off
-        if isOnBoard(i) and isEnemyPiece(board, i, 'k', enemy):
+        if isOnBoard(i) and _valid_step(king_pos, i, off) and isEnemyPiece(board, i, 'k', enemy):
             return False
     return True
 
@@ -153,6 +153,9 @@ def moveValidate(piece: str, dest: int, turn: str, board, botWhite, gameStates) 
     src = findPiece(piece, board)
     if src == -1: return False
     if board[dest] is not None and same_side(piece, board[dest]): return False
+    # Kings are not capturable; checkmate ends the game instead.
+    if turn == 'player' and board[dest] == 'K': return False
+    if turn == 'bot' and board[dest] == 'k': return False
     rdiff = (dest // 8) - (src // 8)
     cdiff = (dest % 8) - (src % 8)
     t = piece[0].lower()
